@@ -23,6 +23,8 @@
         <p class="account-status"><strong data-session-name></strong><span class="account-role" data-session-role></span> でログイン中です。データはCloudflareに保存され、同じアカウントで複数端末から利用できます。</p>
         <p class="sync-state online" data-sync-state>同期済み</p>
         <button type="button" class="secondary-btn wide" data-logout>ログアウト</button>
+        <button type="button" class="secondary-btn wide account-delete" data-delete-account>アカウントを削除</button>
+        <p class="account-error" data-session-error role="alert"></p>
       </div>
     </form>`;
   document.body.appendChild(dialog);
@@ -32,6 +34,8 @@
   const errorBox = dialog.querySelector(".account-error");
   const syncState = dialog.querySelector("[data-sync-state]");
   const logoutButton = dialog.querySelector("[data-logout]");
+  const deleteButton = dialog.querySelector("[data-delete-account]");
+  const sessionError = dialog.querySelector("[data-session-error]");
 
   function snapshot() {
     return {
@@ -72,6 +76,8 @@
       dialog.querySelector("[data-session-name]").textContent = user.username;
       dialog.querySelector("[data-session-role]").textContent = user.role === "admin" ? "管理者" : "";
       logoutButton.hidden = user.id === "local-device";
+      deleteButton.hidden = user.id === "local-device";
+      sessionError.textContent = "";
     }
   }
 
@@ -186,6 +192,22 @@
     user = null; hydrated = false;
     window.ExpenceFinanceStore?.reset(); window.ExpenceWorkspaceStore?.reset(); window.ExpenceSalaryStore?.reset(); window.ExpenceAcademicStore?.reset();
     notifyAccount(); window.appNav?.("dashboard"); dialog.close();
+  });
+
+  dialog.querySelector("[data-delete-account]").addEventListener("click", async () => {
+    if (!user || user.id === "local-device") return;
+    if (!confirm(`アカウント「${user.username}」とCloudflare上の保存データを削除しますか？\nこの操作は取り消せません。`)) return;
+    deleteButton.disabled = true; sessionError.textContent = "";
+    try {
+      await request("/api/auth", { method:"POST", body:JSON.stringify({ action:"delete" }) });
+      user = null; hydrated = false;
+      window.ExpenceFinanceStore?.reset(); window.ExpenceWorkspaceStore?.reset(); window.ExpenceSalaryStore?.reset(); window.ExpenceAcademicStore?.reset();
+      notifyAccount(); window.appNav?.("dashboard"); dialog.close();
+    } catch (error) {
+      sessionError.textContent = `エラー：${error.message}`;
+    } finally {
+      deleteButton.disabled = false;
+    }
   });
 
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && user && hydrated) pull().catch(() => {}); });

@@ -26,6 +26,13 @@ export async function onRequestPost(context) {
     return json({ ok: true }, 200, { "Set-Cookie": sessionCookie("", request, 0) });
   }
 
+  if (body.action === "delete") {
+    const user = await currentUser(request, env);
+    if (!user) return json({ error: "ログインが必要です" }, 401);
+    await env.DB.prepare("DELETE FROM users WHERE id = ?").bind(user.id).run();
+    return json({ ok: true }, 200, { "Set-Cookie": sessionCookie("", request, 0) });
+  }
+
   const username = normalizeUsername(body.username);
   const usernameKey = username.toLocaleLowerCase("en-US");
   const password = String(body.password || "");

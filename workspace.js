@@ -28,12 +28,14 @@
     const sum = (rows, type) => rows.filter(t => t.type === type).reduce((n, t) => n + Number(t.amount || 0), 0);
     const monthIncome = sum(monthRows, "income");
     const monthExpense = sum(monthRows, "expense");
+    const currentAssets = window.ExpenceFinanceStore?.currentAssets?.(month) ?? (Number(forecast.currentAssets) + monthIncome - monthExpense);
     return {
       todayIncome: sum(todayRows, "income"),
       todayExpense: sum(todayRows, "expense"),
       monthIncome,
       monthExpense,
-      afterNextIncome: Number(forecast.currentAssets) + monthIncome - monthExpense + Number(forecast.nextIncome) - Number(forecast.scheduledBills)
+      currentAssets,
+      afterNextIncome: currentAssets + Number(forecast.nextIncome) - Number(forecast.scheduledBills)
     };
   }
 
@@ -51,18 +53,19 @@
     const title = document.querySelector(".forecast-card .label");
     const note = document.querySelector(".forecast-card .subtle");
     if (title) title.textContent = "次の収入込み資産";
-    if (note) note.textContent = "現在資産＋今月収支＋次回収入−引き落とし";
+    if (note) note.textContent = "現在資産＋次回収入−引き落とし";
     if (document.querySelector("#forecastValue")) document.querySelector("#forecastValue").textContent = yen(d.afterNextIncome);
-    if (document.querySelector("#currentAssets")) document.querySelector("#currentAssets").textContent = yen(forecast.currentAssets);
+    if (document.querySelector("#currentAssets")) document.querySelector("#currentAssets").textContent = yen(d.currentAssets);
     if (document.querySelector("#scheduledBills")) document.querySelector("#scheduledBills").textContent = `＋${yen(forecast.nextIncome)}`;
     const labels = document.querySelectorAll(".forecast-row span");
     if (labels[0]) labels[0].textContent = "現在の資産";
     if (labels[1]) labels[1].textContent = "次の収入";
   }
+  window.addEventListener("expence-finance-render", renderFinance);
 
   const forecastDialog = document.createElement("dialog");
   forecastDialog.id = "forecastDialog";
-  forecastDialog.innerHTML = `<form method="dialog" id="forecastForm"><div class="modal-head"><div><p class="eyebrow">ASSET FORECAST</p><h2>資産予測の設定</h2></div><button type="button" class="close-btn" data-forecast-close>×</button></div><label>現在の資産<input name="currentAssets" type="number" min="0"></label><label>次に入る収入<input name="nextIncome" type="number" min="0"></label><label>今後の引き落とし<input name="scheduledBills" type="number" min="0"></label><button class="primary-btn wide">保存する</button></form>`;
+  forecastDialog.innerHTML = `<form method="dialog" id="forecastForm"><div class="modal-head"><div><p class="eyebrow">ASSET FORECAST</p><h2>資産予測の設定</h2></div><button type="button" class="close-btn" data-forecast-close>×</button></div><label>今月の繰越金<input name="currentAssets" type="number"></label><label>次に入る収入<input name="nextIncome" type="number" min="0"></label><label>今後の引き落とし<input name="scheduledBills" type="number" min="0"></label><button class="primary-btn wide">保存する</button></form>`;
   document.body.appendChild(forecastDialog);
 
   const nav = document.createElement("button");
@@ -70,11 +73,8 @@
   nav.dataset.view = "sheets";
   nav.innerHTML = `<span>${window.uiIcon?.("sheet") || "▦"}</span>マイシート`;
   document.querySelector(".main-nav").appendChild(nav);
-  const mobileNav = document.createElement("button");
-  mobileNav.type = "button";
-  mobileNav.dataset.view = "sheets";
-  mobileNav.innerHTML = `<i>${window.uiIcon?.("sheet") || "▦"}</i><span>シート</span>`;
-  document.querySelector(".mobile-nav").appendChild(mobileNav);
+  const mobileNav = document.querySelector('.mobile-nav [data-view="sheets"]');
+  if (mobileNav) mobileNav.querySelector("i").innerHTML = window.uiIcon?.("sheet") || "▦";
 
   const sheetsView = document.createElement("section");
   sheetsView.id = "sheetsView";
@@ -317,7 +317,7 @@
     if (e.target.closest('[data-view="sheets"]')) { document.querySelector("#pageTitle").textContent = "マイシート"; activeSheetId = null; renderSheets(); }
     if (e.target.closest("[data-forecast-settings]")) {
       Object.entries(forecast).forEach(([key, value]) => forecastDialog.elements?.[key] ? forecastDialog.elements[key].value = value : null);
-      forecastDialog.querySelector('[name="currentAssets"]').value = forecast.currentAssets;
+      forecastDialog.querySelector('[name="currentAssets"]').value = window.ExpenceFinanceStore?.carryover?.() ?? forecast.currentAssets;
       forecastDialog.querySelector('[name="nextIncome"]').value = forecast.nextIncome;
       forecastDialog.querySelector('[name="scheduledBills"]').value = forecast.scheduledBills;
       forecastDialog.showModal();
@@ -388,7 +388,9 @@
   });
   document.querySelector("#forecastForm").addEventListener("submit", e => {
     e.preventDefault(); const fd = new FormData(e.target);
-    forecast = { currentAssets:Number(fd.get("currentAssets")), nextIncome:Number(fd.get("nextIncome")), scheduledBills:Number(fd.get("scheduledBills")) };
+    const currentAssets = Number(fd.get("currentAssets"));
+    forecast = { ...forecast, currentAssets, nextIncome:Number(fd.get("nextIncome")), scheduledBills:Number(fd.get("scheduledBills")), carryoverMigrated:true };
+    window.ExpenceFinanceStore?.setCarryover?.(currentAssets, undefined, "manual");
     save(FINANCE_KEY, forecast); forecastDialog.close(); renderFinance();
   });
   document.querySelector("#sheetForm").addEventListener("submit", e => {
@@ -399,16 +401,22 @@
   window.ExpenceWorkspaceStore = {
     snapshot: () => ({ forecast: structuredClone(forecast), sheets: structuredClone(sheets) }),
     restore: value => {
-      forecast = { currentAssets: 0, nextIncome: 0, scheduledBills: 0, ...(value?.forecast || {}) };
+      forecast = { currentAssets: 0, nextIncome: 0, scheduledBills: 0, carryoverMigrated:true, ...(value?.forecast || {}) };
       sheets = Array.isArray(value?.sheets) ? value.sheets : [];
       save(FINANCE_KEY, forecast, true); save(SHEETS_KEY, sheets, true);
       activeSheetId = null; selectedCell = null; renderFinance(); renderSheets();
     },
     reset: () => {
-      forecast = { currentAssets: 0, nextIncome: 0, scheduledBills: 0 }; sheets = [];
+      forecast = { currentAssets: 0, nextIncome: 0, scheduledBills: 0, carryoverMigrated:true }; sheets = [];
       save(FINANCE_KEY, forecast, true); save(SHEETS_KEY, sheets, true);
       activeSheetId = null; selectedCell = null; renderFinance(); renderSheets();
     }
   };
+  if (!forecast.carryoverMigrated) {
+    const legacyAssets = Number(forecast.currentAssets) || 0;
+    if (legacyAssets && !Number(window.ExpenceFinanceStore?.carryover?.())) window.ExpenceFinanceStore?.setCarryover?.(legacyAssets, undefined, "manual", true);
+    forecast = { ...forecast, carryoverMigrated:true };
+    save(FINANCE_KEY, forecast, true);
+  }
   renderFinance(); renderSheets();
 })();

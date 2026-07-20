@@ -30,6 +30,13 @@ async function authApi(request,response) {
   if(request.method!=="POST"){json(response,405,{error:"Method Not Allowed"});return;}
   let body;try{body=await readBody(request);}catch{json(response,400,{error:"入力内容を確認してください"});return;}
   if(body.action==="logout"){const token=cookie(request,"et_session");sessions.delete(token);json(response,200,{ok:true},{"Set-Cookie":"et_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"});return;}
+  if(body.action==="delete"){
+    const user=currentUser(request,db);
+    if(!user){json(response,401,{error:"ログインが必要です"});return;}
+    db.users=db.users.filter(item=>item.id!==user.id);delete db.data[user.id];
+    for(const [token,userId] of sessions.entries())if(userId===user.id)sessions.delete(token);
+    saveDb(db);json(response,200,{ok:true},{"Set-Cookie":"et_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"});return;
+  }
   const username=normalizeUsername(body.username),key=username.toLocaleLowerCase("en-US"),password=String(body.password||"");
   if(!validUsername(username)){json(response,400,{error:"アカウント名は3〜32文字の文字・数字・_・.・-で入力してください"});return;}
   const minimumLength=6;if(password.length<minimumLength||password.length>128){json(response,400,{error:`パスワードは${minimumLength}〜128文字で入力してください`});return;}

@@ -15,6 +15,7 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .account-status strong{color:var(--ink)}
 .account-role{display:inline-block;margin-left:7px;padding:2px 7px;border-radius:999px;background:#edf0ff;color:var(--mint-dark);font-size:9px;font-weight:700}
 .account-error{min-height:18px;color:#bd5c4c;font-size:11px}
+.account-delete{color:#a44f4f;border-color:#efcece}.account-delete:hover{background:#fff4f4}
 .password-warning{margin-top:-6px;font-size:10px;line-height:1.55;color:#a35e45;background:#fff5ed;border-radius:9px;padding:9px 10px}
 .account-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .secondary-btn{border:1px solid var(--line);background:#fff;padding:11px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer}
@@ -41,6 +42,7 @@ body:not([data-active-view="dashboard"]) .view.active>.section-heading:first-chi
 .sheet-heading-actions{display:flex;gap:8px;align-items:center}.sheet-cell{overflow-wrap:anywhere;word-break:break-word}.sheet-toolbar h2,.sheet-toolbar p,.section-heading h2,.section-heading p{overflow-wrap:anywhere}
 #assetChart polyline,#assetChart circle{stroke:var(--mint-dark)}#assetChart stop:first-child{stop-color:var(--mint)}
 .salary-summary{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important}.payday-picker{font-size:9px;font-weight:700}.payday-picker>span{display:flex;align-items:center;gap:5px;margin-top:4px}.payday-picker input{width:66px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:8px}.payday-value{font-size:15px!important}
+.carryover-panel{margin-bottom:18px}.carryover-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}.carryover-head h2{font-size:18px}.carryover-head p{margin-top:5px;color:var(--muted);font-size:11px}.carryover-mode{flex:none;border-radius:999px;padding:6px 10px;font-size:10px;font-weight:700;background:#f0f2f5;color:var(--muted)}.carryover-mode.manual{background:#fff1e8;color:#a35e45}.carryover-mode.auto{background:#edf0ff;color:var(--mint-dark)}.carryover-controls{display:grid;grid-template-columns:minmax(220px,1fr) auto auto;align-items:stretch;gap:10px}.carryover-controls label{display:flex;align-items:center;min-width:0;border:1px solid var(--line);border-radius:11px;background:#fff;overflow:hidden}.carryover-controls input{width:100%;min-width:0;border:0;background:transparent;padding:12px 4px 12px 14px;text-align:right;font-size:18px;font-weight:700;outline:none}.carryover-controls label:focus-within{border-color:var(--mint-dark);box-shadow:0 0 0 3px #edf0ff}.carryover-controls label>span{padding:0 14px 0 7px;font-size:12px;font-weight:700}.carryover-note{min-height:18px;margin-top:10px;color:var(--muted);font-size:10px;line-height:1.6}
 
 @media(min-width:761px) and (max-width:1100px){
   .sidebar{width:96px;padding:22px 9px 16px;align-items:stretch}
@@ -65,12 +67,13 @@ body:not([data-active-view="dashboard"]) .view.active>.section-heading:first-chi
   .mobile-nav button i{display:grid;place-items:center;font-style:normal}
   .mobile-nav button .ui-icon{width:27px;height:27px}
   .mobile-nav button span{font-size:10px;font-weight:700;line-height:1}
-  .mobile-nav button.active{background:#edf0ff;color:var(--mint-dark)}
-  .mobile-nav button:active{transform:translateY(-3px) scale(.96);background:#e5e9ff}
+  .mobile-nav button.active{background:transparent;color:var(--muted)}
+  .mobile-nav button:active{transform:translateY(-3px);background:transparent;color:var(--muted)}
   .content{padding-bottom:28px}
   main:has(.topbar.is-hidden) .content{padding-top:8px}
   body[data-active-view="sheets"] .content{padding:10px 8px 18px}
   body[data-active-view="sheets"] .spreadsheet-wrap{max-height:calc(100dvh - 205px)!important;border-radius:10px}
+  .carryover-head{align-items:center}.carryover-controls{grid-template-columns:1fr 1fr}.carryover-controls label{grid-column:1/-1}.carryover-controls button{white-space:normal;padding-inline:10px}
 }
 
 @media(max-width:390px){
