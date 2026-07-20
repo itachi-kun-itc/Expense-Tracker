@@ -35,7 +35,7 @@ export async function onRequestPost(context) {
 
   if (body.action === "register") {
     const salt = createSalt();
-    const iterations = 210000;
+    const iterations = 100000;
     const passwordHash = await hashPassword(password, salt, iterations);
     try {
       const result = await env.DB.prepare(`

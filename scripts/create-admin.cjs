@@ -12,7 +12,7 @@ if (!username || !password) {
 const normalized = username.normalize("NFKC").trim();
 const key = normalized.toLocaleLowerCase("en-US");
 const salt = crypto.randomBytes(16).toString("base64");
-const iterations = 210000;
+const iterations = 100000;
 const hash = crypto.pbkdf2Sync(password,Buffer.from(salt,"base64"),iterations,32,"sha256").toString("hex");
 const quote = value => `'${String(value).replaceAll("'","''")}'`;
 const sql = `INSERT INTO users (username, username_key, password_hash, salt, iterations) VALUES (${quote(normalized)}, ${quote(key)}, ${quote(hash)}, ${quote(salt)}, ${iterations}) ON CONFLICT(username_key) DO UPDATE SET username=excluded.username, password_hash=excluded.password_hash, salt=excluded.salt, iterations=excluded.iterations;`;

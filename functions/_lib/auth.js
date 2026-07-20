@@ -23,7 +23,7 @@ function base64ToBytes(value) {
   return Uint8Array.from(binary, character => character.charCodeAt(0));
 }
 
-export async function hashPassword(password, saltBase64, iterations = 210000) {
+export async function hashPassword(password, saltBase64, iterations = 100000) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: base64ToBytes(saltBase64), iterations }, key, 256);
   return bytesToHex(bits);
