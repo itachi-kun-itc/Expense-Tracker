@@ -111,7 +111,7 @@ function transactions() {
   let rows=[...items()].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);if(filter!=="all")rows=rows.filter(item=>item.type===filter);
   transactionTable.innerHTML='<div class="tx-row header"><span>日付</span><span>内容</span><span>カテゴリ</span><span>金額</span><span></span></div>'+(rows.map(item=>{const category=cats[item.category]||cats.other;return `<div class="tx-row"><span>${dateLabel(item.date)}</span><div><b>${escapeHtml(item.memo||category.name)}</b></div><span class="tx-category">${category.name}</span><b class="${item.type==='income'?'positive':''}">${item.type==='income'?'+':'−'}${yen(item.amount)}</b><button data-delete="${item.id}" aria-label="削除">×</button></div>`}).join("")||'<p class="empty">この月の記録はありません</p>');
 }
-function budgets() { const budgets=monthBudgets();budgetEditor.innerHTML=Object.keys(budgets).map(key=>{const category=cats[key],used=spent(key),value=Number(budgets[key])||0;return `<div class="budget-edit-row"><span class="category-icon" style="background:${category.bg};color:${category.color}">${category.icon}</span><div><b>${category.name}</b><p class="subtle">今月 ${yen(used)} 使用</p></div><input type="number" min="0" step="1000" data-budget="${key}" value="${value||""}" placeholder="例：30,000"><span class="subtle">残り ${yen(Math.max(0,value-used))}</span></div>`}).join(""); }
+function budgets() { const budgets=monthBudgets();budgetEditor.innerHTML=Object.keys(budgets).map(key=>{const category=cats[key],used=spent(key),value=Number(budgets[key])||0;return `<div class="budget-edit-row"><span class="category-icon" style="background:${category.bg};color:${category.color}">${category.icon}</span><div><b>${category.name}</b><p class="subtle">今月 ${yen(used)} 使用</p></div><input type="number" min="0" step="1000" data-budget="${key}" value="${value||""}" placeholder="30,000"><span class="subtle">残り ${yen(Math.max(0,value-used))}</span></div>`}).join(""); }
 function renderExpenseBreakdown() {
   const expenses=items().filter(item=>item.type==="expense"),total=expenses.reduce((sum,item)=>sum+Number(item.amount||0),0),values=Object.keys(cats).filter(key=>key!=="salary").map(key=>({key,value:expenses.filter(item=>item.category===key).reduce((sum,item)=>sum+Number(item.amount||0),0)})).filter(item=>item.value>0).sort((a,b)=>b.value-a.value);
   expenseBreakdown.innerHTML=values.length?`<div class="expense-total"><small>支出合計</small><b>${yen(total)}</b></div><div class="expense-ratio-list">${values.map(item=>{const category=cats[item.key],percent=Math.round(item.value/total*100);return `<div><span>${category.name}</span><div class="ratio-bar"><i style="width:${percent}%;background:${category.color}"></i></div><b>${percent}%</b><small>${yen(item.value)}</small></div>`}).join("")}</div>`:'<p class="salary-empty">この月の支出はありません</p>';
@@ -124,7 +124,7 @@ function assets() { const {balance}=totals(),current=currentAssetsForMonth(),fix
 function renderCarryover() {
   const input=document.querySelector("[data-carryover-input]"),monthLabel=document.querySelector("[data-carryover-month]"),modeLabel=document.querySelector("[data-carryover-mode]"),note=document.querySelector("[data-carryover-note]");if(!input)return;
   const [year,month]=state.month.split("-").map(Number),mode=state.carryoverModes[state.month],previous=monthOffset(state.month,-1),paydayStatus=carryoverPaydayStatus(previous),updated=state.carryoverUpdatedAt[state.month],updateLabel=state.carryoverUpdateLabels[state.month];
-  input.value=carryoverForMonth()||"";input.placeholder="例：500,000";monthLabel.textContent=`${year}年${month}月の開始時点`;modeLabel.textContent=mode==="manual"?"手動設定":mode==="auto"?"自動更新":"未設定";modeLabel.className=`carryover-mode ${mode||"pending"}`;
+  input.value=carryoverForMonth()||"";input.placeholder="500,000";monthLabel.textContent=`${year}年${month}月の開始時点`;modeLabel.textContent=mode==="manual"?"手動設定":mode==="auto"?"自動更新":"未設定";modeLabel.className=`carryover-mode ${mode||"pending"}`;
   if(mode==="manual")note.textContent="手動設定が優先されています。自動更新に戻すこともできます。";
   else if(mode==="auto"&&updated)note.textContent=`${updateLabel||"給与日"}経過後の資産から自動更新（${new Date(updated).toLocaleString("ja-JP")}）${paydayStatus.next?`。次は${paydayStatus.next.name}の給与日後に再更新します`:""}`;
   else if(mode==="auto"&&paydayStatus.next)note.textContent=`自動更新を予約済みです。${paydayStatus.next.name}の${paydayStatus.next.date.toLocaleDateString("ja-JP")}の翌日以降に更新します。`;
@@ -163,10 +163,19 @@ function upsertSalaryIncome(entry) {
   const amount=Math.max(0,Math.round(Number(entry?.amount)||0)),date=String(entry?.date||""),sourceId=String(entry?.sourceId||"");
   if(!amount||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!sourceId)return null;
   let transaction=state.transactions.find(item=>item.sourceId===sourceId),created=false;
+  if(!transaction&&entry?.legacySourcePrefix)transaction=state.transactions.find(item=>String(item.sourceId||"").startsWith(String(entry.legacySourcePrefix))&&String(item.date||"").startsWith(date.slice(0,7)));
   if(!transaction){transaction={id:Date.now(),sourceId};state.transactions.push(transaction);created=true;}
-  Object.assign(transaction,{date,type:"income",category:"salary",amount,memo:String(entry.memo||"給与").slice(0,40)});
+  Object.assign(transaction,{sourceId,date,type:"income",category:"salary",amount,memo:String(entry.memo||"給与").slice(0,40)});
+  if(entry?.legacySourcePrefix)state.transactions=state.transactions.filter(item=>item===transaction||!(String(item.sourceId||"").startsWith(String(entry.legacySourcePrefix))&&String(item.date||"").startsWith(date.slice(0,7))));
+  if(entry?.selectMonth!==false){state.month=date.slice(0,7);state.assets=carryoverForMonth(state.month);monthBudgets();}
   save();render();return {created,transaction:structuredClone(transaction)};
 }
-window.ExpenceFinanceStore={snapshot:()=>structuredClone(state),transactions:()=>structuredClone(state.transactions),currentAssets:(month=state.month)=>currentAssetsForMonth(month),carryover:(month=state.month)=>carryoverForMonth(month),hasCarryover:(month=state.month)=>Object.hasOwn(state.carryoversByMonth,month),selectedMonth:()=>state.month,setCarryover:(amount,month=state.month,mode="manual",skipSync=false)=>setCarryover(amount,month,mode,skipSync),upsertSalaryIncome,rerender:render,restore:value=>{state=normalizeState(value);save(true);render();},reset:()=>{state=normalizeState(null);save(true);render();}};
+function removeSalaryIncome(sourceId,legacySourcePrefix="",month="") {
+  const before=state.transactions.length;
+  state.transactions=state.transactions.filter(item=>item.sourceId!==String(sourceId||"")&&!(legacySourcePrefix&&String(item.sourceId||"").startsWith(legacySourcePrefix)&&String(item.date||"").startsWith(month)));
+  if(state.transactions.length===before)return false;
+  save();render();return true;
+}
+window.ExpenceFinanceStore={snapshot:()=>structuredClone(state),transactions:()=>structuredClone(state.transactions),currentAssets:(month=state.month)=>currentAssetsForMonth(month),carryover:(month=state.month)=>carryoverForMonth(month),hasCarryover:(month=state.month)=>Object.hasOwn(state.carryoversByMonth,month),selectedMonth:()=>state.month,setCarryover:(amount,month=state.month,mode="manual",skipSync=false)=>setCarryover(amount,month,mode,skipSync),upsertSalaryIncome,removeSalaryIncome,rerender:render,restore:value=>{state=normalizeState(value);save(true);render();},reset:()=>{state=normalizeState(null);save(true);render();}};
 document.body.dataset.activeView="dashboard";
 render();

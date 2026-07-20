@@ -84,7 +84,7 @@
 
   const sheetDialog = document.createElement("dialog");
   sheetDialog.id = "sheetDialog";
-  sheetDialog.innerHTML = `<form method="dialog" id="sheetForm"><div class="modal-head"><div><p class="eyebrow">NEW SHEET</p><h2>シートを追加</h2></div><button type="button" class="close-btn" data-sheet-close>×</button></div><label>シート名<input name="name" required maxlength="30" placeholder="例：教習所"></label><div class="template-options"><label><input type="radio" name="template" value="blank" checked><span><b>空白シート</b><small>自由にセルへ入力</small></span></label><label><input type="radio" name="template" value="gpa"><span><b>GPA計算</b><small>単位と評点から自動計算</small></span></label></div><button class="primary-btn wide">追加する</button></form>`;
+  sheetDialog.innerHTML = `<form method="dialog" id="sheetForm"><div class="modal-head"><div><p class="eyebrow">NEW SHEET</p><h2>シートを追加</h2></div><button type="button" class="close-btn" data-sheet-close>×</button></div><label>シート名<input name="name" required maxlength="30" placeholder="教習所"></label><div class="template-options"><label><input type="radio" name="template" value="blank" checked><span><b>空白シート</b><small>自由にセルへ入力</small></span></label><label><input type="radio" name="template" value="gpa"><span><b>GPA計算</b><small>単位と評点から自動計算</small></span></label></div><button class="primary-btn wide">追加する</button></form>`;
   document.body.appendChild(sheetDialog);
 
   function blankData(rows = 12, cols = 6) { return Array.from({ length: rows }, () => Array(cols).fill("")); }

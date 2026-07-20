@@ -68,6 +68,7 @@ body:not([data-active-view="dashboard"]) .view.active>.section-heading:first-chi
   .mobile-nav button i{display:grid;place-items:center;font-style:normal}
   .mobile-nav button .ui-icon{width:31px;height:31px}
   .mobile-nav button span{font-size:11px;font-weight:700;line-height:1}
+  .mobile-nav button>i,.mobile-nav button>span{transform:translateY(-3px)}
   .mobile-nav button.active{background:transparent;color:var(--muted)}
   .mobile-nav button:active{transform:none;background:transparent;color:var(--muted)}
   #toast{bottom:calc(110px + env(safe-area-inset-bottom))}
