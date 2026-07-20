@@ -83,3 +83,8 @@ body:not([data-active-view="dashboard"]) .view.active>.section-heading:first-chi
   .mobile-nav button span{font-size:10px}
   .mobile-nav button .ui-icon{width:29px;height:29px}
 }
+
+/* Protected tabs remain visible while their operation area waits for login. */
+body[data-authenticated="false"] .view.active:not(#dashboardView):not(#academicHomeView){position:relative;min-height:clamp(360px,62dvh,720px)}
+body[data-authenticated="false"] .view.active:not(#dashboardView):not(#academicHomeView)>*{visibility:hidden;pointer-events:none}
+body[data-authenticated="false"] .view.active:not(#dashboardView):not(#academicHomeView)::before{content:"ログイン後に使用可能です";position:absolute;inset:0;display:grid;place-items:center;padding:30px;border:1px solid var(--line);border-radius:20px;background:#fff;color:var(--muted);font-size:clamp(15px,2vw,20px);font-weight:700;text-align:center;box-shadow:var(--shadow);visibility:visible}

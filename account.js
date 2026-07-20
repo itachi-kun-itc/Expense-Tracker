@@ -13,8 +13,8 @@
         <button type="button" class="close-btn" data-account-close>×</button>
       </div>
       <div class="auth-fields">
-        <label>アカウント名<input name="username" autocomplete="username" minlength="3" maxlength="32" required placeholder="3〜32文字"></label>
-        <label>パスワード<input name="password" type="password" autocomplete="current-password" minlength="6" maxlength="128" required placeholder="6文字以上"></label>
+        <label>アカウント名<input name="username" autocomplete="username" minlength="3" maxlength="32" required placeholder="例：haruka"></label>
+        <label>パスワード<input name="password" type="password" autocomplete="current-password" minlength="6" maxlength="128" required placeholder="例：6文字以上のパスワード"></label>
         <p class="password-warning">パスワードを忘れると復旧できません。必ずご自身で安全な場所に控えてください。</p>
         <p class="account-error" role="alert"></p>
         <div class="account-actions"><button class="primary-btn" data-auth-action="login">ログイン</button><button class="secondary-btn" data-auth-action="register">新規登録</button></div>
@@ -102,16 +102,6 @@
       return false;
     }
   };
-
-  document.addEventListener("click", event => {
-    const view = event.target.closest("[data-view]")?.dataset.view;
-    const go = event.target.closest("[data-go]")?.dataset.go;
-    const protectedNavigation = (view && view !== "dashboard") || go === "transactions" || go === "budget";
-    if (!protectedNavigation || user) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    openAccount("ホーム以外を利用するには、ログインまたは新規登録が必要です。");
-  }, true);
 
   function setSyncState(text, mode = "online") {
     syncState.textContent = text;
