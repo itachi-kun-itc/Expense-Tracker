@@ -11,6 +11,7 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .money-input>span{font-size:14px;font-weight:700;margin-right:8px}
 .account-status{font-size:11px;color:var(--muted);line-height:1.6}
 .account-status strong{color:var(--ink)}
+.account-role{display:inline-block;margin-left:7px;padding:2px 7px;border-radius:999px;background:#edf0ff;color:var(--mint-dark);font-size:9px;font-weight:700}
 .account-error{min-height:18px;color:#bd5c4c;font-size:11px}
 .account-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .secondary-btn{border:1px solid var(--line);background:#fff;padding:11px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer}
@@ -25,18 +26,31 @@ body[data-active-view="sheets"] .sheet-heading{margin:0 0 10px}
 body[data-active-view="sheets"] .spreadsheet-wrap{max-height:calc(100dvh - 205px)!important}
 .sheet-zoom{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}.sheet-zoom button{border:0!important;border-radius:0!important;padding:7px 9px!important}.sheet-zoom b{min-width:42px;text-align:center;font-size:9px;color:var(--muted)}
 
+/* 独自のブルー・ラベンダー配色。銀行系の深緑から印象を分離する。 */
+:root{--ink:#24324a;--muted:#7b8495;--line:#e2e5ec;--paper:#f7f7f4;--mint:#aebbf5;--mint-dark:#5267c9;--coral:#ee9478;--shadow:0 12px 35px rgba(36,50,74,.08)}
+.nav-item:hover,.nav-item.active,.template-options input:checked+span,.format-toolbar button:hover,.format-toolbar button.active,.fill-control:hover,.sim-result{background:#edf0ff}
+.trend{background:#eef0ff}.status-pill{background:#eef0ff;color:#4d5fb7}.bar{background:#3a4862}.balance-card .subtle,.balance-meta{color:#b9c2d2}.safe-box{background:#f2f3f8}
+body:not([data-active-view="dashboard"]) .content{padding-top:14px}
+body:not([data-active-view="dashboard"]) .view.active>.section-heading:first-child{margin-top:0}
+#financesView .section-heading{margin-top:18px}
+.mini-bars{grid-template-columns:minmax(44px,auto) minmax(80px,1fr) auto!important;gap:9px 12px!important}
+.mini-bars>div:first-child,.mini-bars>div:nth-child(3){display:contents!important}.mini-bars>div span{grid-column:1}.mini-bars>div b{grid-column:3;text-align:right}.mini-bars>.bar{grid-column:2}
+.sheet-heading-actions{display:flex;gap:8px;align-items:center}.sheet-cell{overflow-wrap:anywhere;word-break:break-word}.sheet-toolbar h2,.sheet-toolbar p,.section-heading h2,.section-heading p{overflow-wrap:anywhere}
+#assetChart polyline,#assetChart circle{stroke:var(--mint-dark)}#assetChart stop:first-child{stop-color:var(--mint)}
+.salary-summary{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important}.payday-picker{font-size:9px;font-weight:700}.payday-picker>span{display:flex;align-items:center;gap:5px;margin-top:4px}.payday-picker input{width:66px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:8px}.payday-value{font-size:15px!important}
+
 @media(max-width:760px){
   body,.app-shell{height:100dvh;overflow:hidden}
   main{height:calc(100dvh - 72px - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
   .fab{display:none!important}
-  .app-shell .mobile-nav{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));height:calc(72px + env(safe-area-inset-bottom));padding:4px 4px env(safe-area-inset-bottom);gap:0;overflow:visible!important;justify-content:unset;box-shadow:0 -8px 25px rgba(27,54,47,.06)}
+  .app-shell .mobile-nav{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));height:calc(72px + env(safe-area-inset-bottom));padding:4px 4px env(safe-area-inset-bottom);gap:0;overflow:visible!important;justify-content:unset;box-shadow:0 -8px 25px rgba(36,50,74,.08)}
   .app-shell .mobile-nav button{position:relative;width:100%;min-width:0!important;height:60px;align-content:center;justify-content:center;gap:4px;border-radius:12px;font-size:18px;cursor:pointer;user-select:none;pointer-events:auto}
   .mobile-nav button i{display:grid;place-items:center;font-style:normal}
   .mobile-nav button .ui-icon{width:21px;height:21px}
-  .mobile-nav button.active{background:#eef8f3;color:var(--mint-dark)}
-  .mobile-nav button:active{transform:scale(.96);background:#e4f4ec}
+  .mobile-nav button.active{background:#edf0ff;color:var(--mint-dark)}
+  .mobile-nav button:active{transform:scale(.96);background:#e5e9ff}
   .content{padding-bottom:28px}
-  main:has(.topbar.is-hidden) .content{padding-top:18px}
+  main:has(.topbar.is-hidden) .content{padding-top:8px}
   body[data-active-view="sheets"] .content{padding:10px 8px 18px}
   body[data-active-view="sheets"] .spreadsheet-wrap{max-height:calc(100dvh - 205px)!important;border-radius:10px}
 }

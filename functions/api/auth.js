@@ -1,5 +1,7 @@
 import { createSalt, createToken, currentUser, hashPassword, hashToken, json, normalizeUsername, safeEqual, sessionCookie, validUsername } from "../_lib/auth.js";
 
+const publicUser = user => user ? { id:user.id, username:user.username, role:normalizeUsername(user.username).toLocaleLowerCase("en-US") === "haruka" ? "admin" : "user" } : null;
+
 async function createSession(userId, request, env) {
   const token = createToken();
   const tokenHash = await hashToken(token);
@@ -10,7 +12,7 @@ async function createSession(userId, request, env) {
 
 export async function onRequestGet(context) {
   const user = await currentUser(context.request, context.env);
-  return json({ user: user ? { id: user.id, username: user.username } : null });
+  return json({ user: publicUser(user) });
 }
 
 export async function onRequestPost(context) {
@@ -28,7 +30,8 @@ export async function onRequestPost(context) {
   const usernameKey = username.toLocaleLowerCase("en-US");
   const password = String(body.password || "");
   if (!validUsername(username)) return json({ error: "アカウント名は3〜32文字の文字・数字・_・.・-で入力してください" }, 400);
-  if (password.length < 8 || password.length > 128) return json({ error: "パスワードは8〜128文字で入力してください" }, 400);
+  const minimumLength = usernameKey === "haruka" ? 6 : 8;
+  if (password.length < minimumLength || password.length > 128) return json({ error: `パスワードは${minimumLength}〜128文字で入力してください` }, 400);
 
   if (body.action === "register") {
     const salt = createSalt();
@@ -37,14 +40,14 @@ export async function onRequestPost(context) {
     try {
       const result = await env.DB.prepare(`
         INSERT INTO users (username, username_key, password_hash, salt, iterations)
-        SELECT ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM users)
+        VALUES (?, ?, ?, ?, ?)
       `)
         .bind(username, usernameKey, passwordHash, salt, iterations).run();
-      if (!result.meta.changes) return json({ error: "このアプリの新規アカウント登録は終了しています" }, 403);
       const cookie = await createSession(result.meta.last_row_id, request, env);
-      return json({ user: { id: result.meta.last_row_id, username } }, 201, { "Set-Cookie": cookie });
-    } catch {
-      return json({ error: "そのアカウント名は既に使われています" }, 409);
+      return json({ user: publicUser({ id:result.meta.last_row_id, username }) }, 201, { "Set-Cookie": cookie });
+    } catch (error) {
+      if (String(error?.message || error).toLowerCase().includes("unique")) return json({ error: "そのアカウント名は既に使われています" }, 409);
+      return json({ error: "アカウントを作成できませんでした。データベース設定を確認してください" }, 500);
     }
   }
 
@@ -54,7 +57,7 @@ export async function onRequestPost(context) {
     const candidate = await hashPassword(password, user.salt, user.iterations);
     if (!safeEqual(candidate, user.password_hash)) return json({ error: "アカウント名またはパスワードが違います" }, 401);
     const cookie = await createSession(user.id, request, env);
-    return json({ user: { id: user.id, username: user.username } }, 200, { "Set-Cookie": cookie });
+    return json({ user: publicUser(user) }, 200, { "Set-Cookie": cookie });
   }
 
   return json({ error: "未対応の操作です" }, 400);

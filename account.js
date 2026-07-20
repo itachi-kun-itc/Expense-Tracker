@@ -19,7 +19,7 @@
         <div class="account-actions"><button class="primary-btn" data-auth-action="login">ログイン</button><button class="secondary-btn" data-auth-action="register">新規登録</button></div>
       </div>
       <div class="account-session" hidden>
-        <p class="account-status"><strong data-session-name></strong> でログイン中です。データはCloudflareに保存され、同じアカウントで複数端末から利用できます。</p>
+        <p class="account-status"><strong data-session-name></strong><span class="account-role" data-session-role></span> でログイン中です。データはCloudflareに保存され、同じアカウントで複数端末から利用できます。</p>
         <p class="sync-state online" data-sync-state>同期済み</p>
         <button type="button" class="secondary-btn wide" data-logout>ログアウト</button>
       </div>
@@ -36,7 +36,8 @@
       version: 1,
       finance: window.ExpenceFinanceStore?.snapshot() || null,
       workspace: window.ExpenceWorkspaceStore?.snapshot() || null,
-      salary: window.ExpenceSalaryStore?.snapshot() || null
+      salary: window.ExpenceSalaryStore?.snapshot() || null,
+      academic: window.ExpenceAcademicStore?.snapshot() || null
     };
   }
 
@@ -45,6 +46,7 @@
     if (data.finance) window.ExpenceFinanceStore?.restore(data.finance);
     if (data.workspace) window.ExpenceWorkspaceStore?.restore(data.workspace);
     if (data.salary) window.ExpenceSalaryStore?.restore(data.salary);
+    if (data.academic) window.ExpenceAcademicStore?.restore(data.academic);
   }
 
   async function request(path, options = {}) {
@@ -63,7 +65,10 @@
     document.querySelectorAll("[data-account-avatar]").forEach(el => el.textContent = user?.username?.slice(0, 1).toUpperCase() || "私");
     fields.hidden = Boolean(user);
     session.hidden = !user;
-    if (user) dialog.querySelector("[data-session-name]").textContent = user.username;
+    if (user) {
+      dialog.querySelector("[data-session-name]").textContent = user.username;
+      dialog.querySelector("[data-session-role]").textContent = user.role === "admin" ? "管理者" : "";
+    }
   }
 
   function setSyncState(text, mode = "online") {
@@ -142,7 +147,7 @@
   dialog.querySelector("[data-logout]").addEventListener("click", async () => {
     try { await request("/api/auth", { method: "POST", body: JSON.stringify({ action: "logout" }) }); } catch {}
     user = null; hydrated = false;
-    window.ExpenceFinanceStore?.reset(); window.ExpenceWorkspaceStore?.reset(); window.ExpenceSalaryStore?.reset();
+    window.ExpenceFinanceStore?.reset(); window.ExpenceWorkspaceStore?.reset(); window.ExpenceSalaryStore?.reset(); window.ExpenceAcademicStore?.reset();
     updateAccountUi(); dialog.close();
   });
 
