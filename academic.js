@@ -5,7 +5,7 @@
     subjects: [],
     commuter: { oneWay:0, daysPerMonth:20, months:1, pass1:0, pass3:0, pass6:0 }
   });
-  let academic = load(), mode = localStorage.getItem(MODE_KEY) === "academic" ? "academic" : "finance";
+  let academic = load(), preferredMode = localStorage.getItem(MODE_KEY) === "academic" ? "academic" : "finance", mode = "finance";
   function load() { try { return { ...emptyState(), ...(JSON.parse(localStorage.getItem(KEY)) || {}) }; } catch { return emptyState(); } }
   function save(skipSync=false) { localStorage.setItem(KEY,JSON.stringify(academic));if(!skipSync)window.CloudSync?.schedule(); }
   const escapeHtml = value => String(value ?? "").replace(/[&<>\"]/g, character => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[character]));
@@ -33,14 +33,14 @@
   addNav(document.querySelector(".mobile-nav"),"attendance","出欠");addNav(document.querySelector(".mobile-nav"),"commuter","定期券");
   const homeButtons=[...document.querySelectorAll('[data-view="dashboard"]')];homeButtons.forEach(button=>button.dataset.homeToggle="");
 
-  function applyMode(navigate=true) {
-    document.body.dataset.appMode=mode;localStorage.setItem(MODE_KEY,mode);
+  function applyMode(navigate=true,persist=true) {
+    document.body.dataset.appMode=mode;if(persist){preferredMode=mode;localStorage.setItem(MODE_KEY,mode);}
     homeButtons.forEach(button=>button.dataset.view=mode==="academic"?"academicHome":"dashboard");
     if(navigate) window.appNav?.(mode==="academic"?"academicHome":"dashboard");
     document.querySelector("#toast").textContent=mode==="academic"?"学業モードに切り替えました":"家計モードに戻りました";
     render();
   }
-  function toggleMode() { mode=mode==="academic"?"finance":"academic";applyMode(true);const toast=document.querySelector("#toast");toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),1800); }
+  function toggleMode() { if(!window.ExpenceAccount?.require?.())return;mode=mode==="academic"?"finance":"academic";applyMode(true,true);const toast=document.querySelector("#toast");toast.classList.add("show");setTimeout(()=>toast.classList.remove("show"),1800); }
 
   let holdTimer=null,suppressClick=false;
   document.addEventListener("pointerdown",event=>{if(!event.target.closest("[data-home-toggle]"))return;clearTimeout(holdTimer);holdTimer=setTimeout(()=>{suppressClick=true;toggleMode();},650);});
@@ -75,5 +75,6 @@
   });
   document.addEventListener("input",event=>{const subjectRow=event.target.closest("[data-subject-id]");if(subjectRow&&event.target.dataset.subjectField){const subject=academic.subjects.find(item=>item.id===Number(subjectRow.dataset.subjectId));subject[event.target.dataset.subjectField]=event.target.type==="number"?Number(event.target.value):event.target.value;save();}if(event.target.dataset.commuterField){academic.commuter[event.target.dataset.commuterField]=Number(event.target.value)||0;save();}});
   window.ExpenceAcademicStore={snapshot:()=>structuredClone(academic),restore:value=>{academic={...emptyState(),...(value||{})};save(true);render();},reset:()=>{academic=emptyState();save(true);render();}};
-  render();applyMode(mode === "academic");
+  document.addEventListener("expence-account-change",event=>{mode=event.detail?.user?preferredMode:"finance";applyMode(true,false);});
+  render();applyMode(false,false);
 })();

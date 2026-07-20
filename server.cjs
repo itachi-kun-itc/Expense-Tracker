@@ -20,7 +20,7 @@ function json(response,status,body,headers={}) { response.writeHead(status,{"Con
 function readBody(request) { return new Promise((resolve,reject)=>{let body="";request.on("data",chunk=>{body+=chunk;if(body.length>2_000_000){reject(new Error("too large"));request.destroy();}});request.on("end",()=>{try{resolve(JSON.parse(body||"{}"));}catch{reject(new Error("invalid json"));}});request.on("error",reject);}); }
 function normalizeUsername(value) { return String(value||"").normalize("NFKC").trim(); }
 function validUsername(value) { return value.length>=3&&value.length<=32&&/^[\p{L}\p{N}_.-]+$/u.test(value); }
-function passwordHash(password,salt) { return crypto.pbkdf2Sync(password,salt,210000,32,"sha256").toString("hex"); }
+function passwordHash(password,salt,iterations=100000) { return crypto.pbkdf2Sync(password,salt,iterations,32,"sha256").toString("hex"); }
 function cookie(request,name) { const match=(request.headers.cookie||"").match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));return match?decodeURIComponent(match[1]):""; }
 function currentUser(request,db) { const token=cookie(request,"et_session"),userId=sessions.get(token);return userId?db.users.find(user=>user.id===userId)||null:null; }
 
@@ -32,13 +32,13 @@ async function authApi(request,response) {
   if(body.action==="logout"){const token=cookie(request,"et_session");sessions.delete(token);json(response,200,{ok:true},{"Set-Cookie":"et_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"});return;}
   const username=normalizeUsername(body.username),key=username.toLocaleLowerCase("en-US"),password=String(body.password||"");
   if(!validUsername(username)){json(response,400,{error:"アカウント名は3〜32文字の文字・数字・_・.・-で入力してください"});return;}
-  const minimumLength=key==="haruka"?6:8;if(password.length<minimumLength||password.length>128){json(response,400,{error:`パスワードは${minimumLength}〜128文字で入力してください`});return;}
+  const minimumLength=6;if(password.length<minimumLength||password.length>128){json(response,400,{error:`パスワードは${minimumLength}〜128文字で入力してください`});return;}
   let user;
   if(body.action==="register"){
     if(db.users.some(item=>item.key===key)){json(response,409,{error:"そのアカウント名は既に使われています"});return;}
-    const salt=crypto.randomBytes(16).toString("base64");user={id:crypto.randomUUID(),username,key,salt,passwordHash:passwordHash(password,salt)};db.users.push(user);saveDb(db);
+    const salt=crypto.randomBytes(16).toString("base64"),iterations=100000;user={id:crypto.randomUUID(),username,key,salt,iterations,passwordHash:passwordHash(password,salt,iterations)};db.users.push(user);saveDb(db);
   }else if(body.action==="login"){
-    user=db.users.find(item=>item.key===key);const candidate=user?passwordHash(password,user.salt):"";
+    user=db.users.find(item=>item.key===key);const candidate=user?passwordHash(password,user.salt,Number(user.iterations)||210000):"";
     if(!user||candidate.length!==user.passwordHash.length||!crypto.timingSafeEqual(Buffer.from(candidate),Buffer.from(user.passwordHash))){json(response,401,{error:"アカウント名またはパスワードが違います"});return;}
   }else{json(response,400,{error:"未対応の操作です"});return;}
   const token=crypto.randomBytes(32).toString("base64url");sessions.set(token,user.id);json(response,body.action==="register"?201:200,{user:{id:user.id,username:user.username,role:key==="haruka"?"admin":"user"}},{"Set-Cookie":`et_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000`});

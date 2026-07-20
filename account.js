@@ -14,7 +14,8 @@
       </div>
       <div class="auth-fields">
         <label>アカウント名<input name="username" autocomplete="username" minlength="3" maxlength="32" required placeholder="3〜32文字"></label>
-        <label>パスワード<input name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required placeholder="8文字以上"></label>
+        <label>パスワード<input name="password" type="password" autocomplete="current-password" minlength="6" maxlength="128" required placeholder="6文字以上"></label>
+        <p class="password-warning">パスワードを忘れると復旧できません。必ずご自身で安全な場所に控えてください。</p>
         <p class="account-error" role="alert"></p>
         <div class="account-actions"><button class="primary-btn" data-auth-action="login">ログイン</button><button class="secondary-btn" data-auth-action="register">新規登録</button></div>
       </div>
@@ -30,6 +31,7 @@
   const session = dialog.querySelector(".account-session");
   const errorBox = dialog.querySelector(".account-error");
   const syncState = dialog.querySelector("[data-sync-state]");
+  const logoutButton = dialog.querySelector("[data-logout]");
 
   function snapshot() {
     return {
@@ -65,11 +67,45 @@
     document.querySelectorAll("[data-account-avatar]").forEach(el => el.textContent = user?.username?.slice(0, 1).toUpperCase() || "私");
     fields.hidden = Boolean(user);
     session.hidden = !user;
+    document.body.dataset.authenticated = user ? "true" : "false";
     if (user) {
       dialog.querySelector("[data-session-name]").textContent = user.username;
       dialog.querySelector("[data-session-role]").textContent = user.role === "admin" ? "管理者" : "";
+      logoutButton.hidden = user.id === "local-device";
     }
   }
+
+  function notifyAccount() {
+    updateAccountUi();
+    document.dispatchEvent(new CustomEvent("expence-account-change", { detail:{ user:user ? { ...user } : null } }));
+  }
+
+  function openAccount(message = "") {
+    errorBox.textContent = message;
+    updateAccountUi();
+    if (!dialog.open) dialog.showModal();
+  }
+
+  window.ExpenceAccount = {
+    isAuthenticated: () => Boolean(user),
+    current: () => user ? { ...user } : null,
+    open: openAccount,
+    require: () => {
+      if (user) return true;
+      openAccount("ホーム以外を利用するには、ログインまたは新規登録が必要です。");
+      return false;
+    }
+  };
+
+  document.addEventListener("click", event => {
+    const view = event.target.closest("[data-view]")?.dataset.view;
+    const go = event.target.closest("[data-go]")?.dataset.go;
+    const protectedNavigation = (view && view !== "dashboard") || go === "transactions" || go === "budget";
+    if (!protectedNavigation || user) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    openAccount("ホーム以外を利用するには、ログインまたは新規登録が必要です。");
+  }, true);
 
   function setSyncState(text, mode = "online") {
     syncState.textContent = text;
@@ -117,14 +153,14 @@
     const result = await request("/api/auth", { method: "POST", body: JSON.stringify({ action, username, password }) });
     user = result.user;
     hydrated = true;
-    updateAccountUi();
+    notifyAccount();
     const remote = await request("/api/data");
     if (remote.data) restore(remote.data); else await push();
     setSyncState("同期済み");
   }
 
   document.addEventListener("click", event => {
-    if (event.target.closest("[data-account-open]")) { errorBox.textContent = ""; updateAccountUi(); dialog.showModal(); }
+    if (event.target.closest("[data-account-open]")) openAccount();
     if (event.target.closest("[data-account-close]")) dialog.close();
   });
 
@@ -145,10 +181,11 @@
   });
 
   dialog.querySelector("[data-logout]").addEventListener("click", async () => {
+    if (user?.id === "local-device") { dialog.close(); return; }
     try { await request("/api/auth", { method: "POST", body: JSON.stringify({ action: "logout" }) }); } catch {}
     user = null; hydrated = false;
     window.ExpenceFinanceStore?.reset(); window.ExpenceWorkspaceStore?.reset(); window.ExpenceSalaryStore?.reset(); window.ExpenceAcademicStore?.reset();
-    updateAccountUi(); dialog.close();
+    notifyAccount(); window.appNav?.("dashboard"); dialog.close();
   });
 
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && user && hydrated) pull().catch(() => {}); });
@@ -156,7 +193,7 @@
   window.CloudSync = { schedule, pull };
   updateAccountUi();
   request("/api/auth").then(result => {
-    user = result.user || null; updateAccountUi();
+    user = result.user || null; notifyAccount();
     if (user) { hydrated = true; return pull(); }
-  }).catch(() => {});
+  }).catch(() => { user = null; notifyAccount(); });
 })();

@@ -30,7 +30,7 @@ export async function onRequestPost(context) {
   const usernameKey = username.toLocaleLowerCase("en-US");
   const password = String(body.password || "");
   if (!validUsername(username)) return json({ error: "アカウント名は3〜32文字の文字・数字・_・.・-で入力してください" }, 400);
-  const minimumLength = usernameKey === "haruka" ? 6 : 8;
+  const minimumLength = 6;
   if (password.length < minimumLength || password.length > 128) return json({ error: `パスワードは${minimumLength}〜128文字で入力してください` }, 400);
 
   if (body.action === "register") {
