@@ -9,7 +9,8 @@ img{-webkit-user-drag:none}
 .topbar.is-hidden{display:none}
 .avatar{display:grid;place-items:center;cursor:pointer;font-weight:700}
 button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-#toast{pointer-events:none}
+#toast{left:50%;right:auto;bottom:24px;max-width:calc(100% - 32px);pointer-events:none;text-align:center;transform:translate(-50%,15px)}
+#toast.show{transform:translate(-50%,0)}
 .money-input>span{font-size:14px;font-weight:700;margin-left:8px}
 .account-status{font-size:11px;color:var(--muted);line-height:1.6}
 .account-status strong{color:var(--ink)}
@@ -60,15 +61,16 @@ body:not([data-active-view="dashboard"]) .view.active>.section-heading:first-chi
 
 @media(max-width:760px){
   body,.app-shell{height:100dvh;overflow:hidden}
-  main{height:calc(100dvh - 84px - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+  main{height:calc(100dvh - 96px - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
   .fab{display:none!important}
-  .app-shell .mobile-nav{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));height:calc(84px + env(safe-area-inset-bottom));padding:4px 6px calc(8px + env(safe-area-inset-bottom));gap:0;overflow:visible!important;justify-content:unset;box-shadow:0 -8px 25px rgba(36,50,74,.08)}
-  .app-shell .mobile-nav button{position:relative;width:100%;min-width:0!important;height:68px;align-content:center;justify-content:center;gap:5px;border-radius:15px;font-size:20px;cursor:pointer;user-select:none;pointer-events:auto;transform:translateY(-3px)}
+  .app-shell .mobile-nav{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));height:calc(96px + env(safe-area-inset-bottom));padding:7px 8px calc(10px + env(safe-area-inset-bottom));gap:0;overflow:visible!important;justify-content:unset;box-shadow:0 -8px 25px rgba(36,50,74,.08)}
+  .app-shell .mobile-nav button{position:relative;width:100%;min-width:0!important;height:78px;align-content:center;justify-content:center;gap:6px;border-radius:15px;font-size:20px;cursor:pointer;user-select:none;pointer-events:auto;transform:none}
   .mobile-nav button i{display:grid;place-items:center;font-style:normal}
-  .mobile-nav button .ui-icon{width:27px;height:27px}
-  .mobile-nav button span{font-size:10px;font-weight:700;line-height:1}
+  .mobile-nav button .ui-icon{width:31px;height:31px}
+  .mobile-nav button span{font-size:11px;font-weight:700;line-height:1}
   .mobile-nav button.active{background:transparent;color:var(--muted)}
-  .mobile-nav button:active{transform:translateY(-3px);background:transparent;color:var(--muted)}
+  .mobile-nav button:active{transform:none;background:transparent;color:var(--muted)}
+  #toast{bottom:calc(110px + env(safe-area-inset-bottom))}
   .content{padding-bottom:28px}
   main:has(.topbar.is-hidden) .content{padding-top:8px}
   body[data-active-view="sheets"] .content{padding:10px 8px 18px}
@@ -78,6 +80,6 @@ body:not([data-active-view="dashboard"]) .view.active>.section-heading:first-chi
 
 @media(max-width:390px){
   .mobile-nav{padding-inline:1px}
-  .mobile-nav button span{font-size:9px}
-  .mobile-nav button .ui-icon{width:24px;height:24px}
+  .mobile-nav button span{font-size:10px}
+  .mobile-nav button .ui-icon{width:29px;height:29px}
 }

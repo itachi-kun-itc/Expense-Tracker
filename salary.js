@@ -227,9 +227,9 @@
           <div class="salary-history">${incomes.length ? incomes.slice(0,8).map(item=>`<div><span>${escapeHtml(item.date)}</span><b>${escapeHtml(item.memo || "収入")}</b><strong>${money(item.amount)}</strong></div>`).join("") : '<p class="salary-empty">収入履歴はありません</p>'}</div>
         </article>
         <article class="panel payslip-panel">
-          <div class="salary-panel-head"><div><h2>給与明細PDF</h2><p>Cloudflareへ保存し、複数端末から閲覧</p></div></div>
-          <div class="payslip-upload"><input type="month" data-payslip-period value="${salaryState.month}"><label class="secondary-btn">PDFを選択<input type="file" accept="application/pdf" data-payslip-file></label><button type="button" class="primary-btn" data-upload-payslip>アップロード</button></div>
-          <p class="payslip-note" data-payslip-note>ログイン後に利用できます（1ファイル10MBまで）</p>
+          <div class="salary-panel-head"><div><h2>給与明細</h2><p>PDF・PNG・JPEGをCloudflareへ保存し、複数端末から閲覧</p></div></div>
+          <div class="payslip-upload"><input type="month" data-payslip-period value="${salaryState.month}"><label class="secondary-btn">ファイルを選択<input type="file" accept="application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg" data-payslip-file></label><button type="button" class="primary-btn" data-upload-payslip>アップロード</button></div>
+          <p class="payslip-note" data-payslip-note>PDF・PNG・JPEG、1ファイル10MBまで</p>
           <div class="payslip-list">${renderPayslips()}</div>
         </article>
       </div>`;
@@ -252,7 +252,7 @@
     </div>`;
   }
   function ruleRow(rule) {
-    return `<div class="rule-row" data-rule-id="${rule.id}"><input class="rule-name" type="text" data-rule-field="name" maxlength="20" value="${escapeHtml(rule.name)}" placeholder="通常・深夜など"><input type="text" inputmode="numeric" maxlength="5" data-time-input data-rule-field="start" value="${rule.start}" placeholder="0000"><span>〜</span><input type="text" inputmode="numeric" maxlength="5" data-time-input data-rule-field="end" value="${rule.end}" placeholder="0000"><label class="rule-rate"><input type="number" min="0" step="1" data-rule-field="rate" value="${rule.rate}"><span>円/時</span></label><button type="button" class="row-delete" data-delete-rule aria-label="時間帯を削除">×</button></div>`;
+    return `<div class="rule-row" data-rule-id="${rule.id}"><input class="rule-name" type="text" data-rule-field="name" maxlength="20" value="${escapeHtml(rule.name)}" placeholder="通常・深夜など"><div class="rule-time-range"><label><span>開始</span><input type="text" inputmode="numeric" maxlength="5" data-time-input data-rule-field="start" value="${rule.start}" placeholder="00:00"></label><i>〜</i><label><span>終了</span><input type="text" inputmode="numeric" maxlength="5" data-time-input data-rule-field="end" value="${rule.end}" placeholder="00:00"></label></div><label class="rule-rate"><input type="number" min="0" step="1" data-rule-field="rate" value="${rule.rate}"><span>円/時</span></label><button type="button" class="row-delete" data-delete-rule aria-label="時間帯を削除">×</button></div>`;
   }
   function updateShiftResult(row, shift) {
     const calculated = calculateShift(shift, salaryState.month), result = row?.querySelector(".shift-result");
@@ -287,11 +287,12 @@
     const input = view.querySelector("[data-payslip-file]"), file = input?.files?.[0];
     const note = view.querySelector("[data-payslip-note]");
     if (!file) { note.textContent = "PDFを選択してください"; return; }
-    if (file.type !== "application/pdf") { note.textContent = "PDFファイルだけ保存できます"; return; }
-    if (file.size > 10 * 1024 * 1024) { note.textContent = "10MB以下のPDFを選択してください"; return; }
+    const allowedTypes = ["application/pdf","image/png","image/jpeg"];
+    if (!allowedTypes.includes(file.type)) { note.textContent = "PDF・PNG・JPEGを選択してください"; return; }
+    if (file.size > 10 * 1024 * 1024) { note.textContent = "10MB以下のファイルを選択してください"; return; }
     note.textContent = "アップロード中…";
     const id = crypto.randomUUID(), period = view.querySelector("[data-payslip-period]").value;
-    const response = await fetch(`/api/files/${id}?name=${encodeURIComponent(file.name)}&period=${encodeURIComponent(period)}`, { method:"PUT", credentials:"same-origin", headers:{ "Content-Type":"application/pdf" }, body:file });
+    const response = await fetch(`/api/files/${id}?name=${encodeURIComponent(file.name)}&period=${encodeURIComponent(period)}`, { method:"PUT", credentials:"same-origin", headers:{ "Content-Type":file.type }, body:file });
     const result = await response.json().catch(()=>({}));
     if (!response.ok) { note.textContent = result.error || "アップロードできませんでした"; return; }
     note.textContent = "保存しました"; await refreshPayslips();
@@ -342,6 +343,7 @@
     if (payslipDelete && confirm("この給与明細を削除しますか？")) fetch(`/api/files/${encodeURIComponent(payslipDelete.dataset.deletePayslip)}`, { method:"DELETE", credentials:"same-origin" }).then(refreshPayslips);
   });
   document.addEventListener("change", event => {
+    if (event.target.matches("[data-payslip-file]")) { const note=view.querySelector("[data-payslip-note]"),file=event.target.files?.[0];if(note)note.textContent=file?`${file.name}を選択中（${(file.size/1024/1024).toFixed(2)}MB）`:"PDF・PNG・JPEG、1ファイル10MBまで";return; }
     if (event.target.matches("[data-salary-month]")) { salaryState.month=event.target.value; persistAndRender(); return; }
     if (event.target.matches("[data-active-job]")) { salaryState.activeJobId=Number(event.target.value); persistAndRender(); return; }
     if (event.target.matches("[data-job-payday]")) { activeJob().payday=Math.min(31,Math.max(1,Number(event.target.value)||1)); persistAndRender(); return; }
