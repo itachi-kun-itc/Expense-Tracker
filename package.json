@@ -1,0 +1,11 @@
+{
+  "name": "expence-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal finance tracker with extensible spreadsheet-style modules",
+  "scripts": {
+    "dev": "node server.cjs",
+    "start": "node server.cjs",
+    "check": "node --check app.js && node --check workspace.js && node --check salary.js && node --check account.js && node --check functions/_lib/auth.js && node --check functions/api/auth.js && node --check functions/api/data.js && node --check functions/api/files.js && node --check functions/api/files/[id].js"
+  }
+}
