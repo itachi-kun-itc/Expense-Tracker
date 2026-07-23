@@ -111,9 +111,10 @@ body[data-authenticated="false"] .view.active:not(#dashboardView):not(#academicH
 body[data-authenticated="false"] #settingsView.active>*{visibility:visible!important;pointer-events:auto!important}body[data-authenticated="false"] #settingsView.active::before{display:none!important}
 @media(max-width:760px){main>.content{padding-top:10px}.settings-row{min-height:70px;padding:12px 15px}}
 
-.card-recurring-option{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:11px;background:#f8f9fc;cursor:pointer}.card-recurring-option input{width:18px;height:18px;margin:0;accent-color:var(--mint-dark)}.card-recurring-option>span{display:grid;gap:3px}.card-recurring-option b{font-size:11px}.card-recurring-option small{color:var(--muted);font-size:9px;font-weight:500}.card-history-row b{display:flex;align-items:center;gap:6px}.card-history-row b em{padding:3px 6px;border-radius:999px;background:#edf0ff;color:var(--mint-dark);font-size:8px;font-style:normal;white-space:nowrap}
-.card-history-panel>.empty{white-space:nowrap}
+.card-recurring-option{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:11px;background:#f8f9fc;cursor:pointer}.card-recurring-option input{width:18px;height:18px;margin:0;accent-color:var(--mint-dark)}.card-recurring-option>span{display:grid;gap:3px;min-width:0}.card-recurring-option b{font-size:11px}.card-recurring-option small{color:var(--muted);font-size:9px;font-weight:500}.card-recurring-option b,.card-recurring-option small,.card-memo-topline h2,.card-memo-topline p{white-space:nowrap;word-break:keep-all;overflow-wrap:normal}.card-history-row b{display:flex;align-items:center;gap:6px}.card-history-row b em{padding:3px 6px;border-radius:999px;background:#edf0ff;color:var(--mint-dark);font-size:8px;font-style:normal;white-space:nowrap}
+.card-history-panel .empty{padding-inline:0;white-space:nowrap;word-break:keep-all;overflow-wrap:normal}
 #cardMemoDialog .form-grid>*{min-width:0}#cardMemoDialog .form-grid input{width:100%;min-width:0;max-width:100%}
+#cardMemoDialog .form-grid.is-recurring{grid-template-columns:minmax(0,1fr)}#cardMemoDialog [data-card-date-field][hidden]{display:none}
 @media(max-width:520px){#cardMemoDialog .form-grid{grid-template-columns:1fr}}
 
 /* Clean modal fields on narrow screens */
@@ -125,3 +126,23 @@ body[data-authenticated="false"] #settingsView.active>*{visibility:visible!impor
   #transactionModal .form-grid{grid-template-columns:minmax(0,1fr);gap:14px}
   #transactionModal .money-input input{min-width:0;padding-inline:6px;font-size:34px}
 }
+
+/* Prevent dialog fields and labels from overflowing or breaking mid-label */
+dialog{max-width:calc(100% - 28px);box-shadow:none}
+dialog form,dialog form>*{min-width:0;max-width:100%}
+dialog input,dialog select,dialog textarea{box-sizing:border-box;min-width:0;max-width:100%}
+dialog input[type="date"],dialog input[type="time"],dialog input[type="month"]{display:block;width:100%;min-inline-size:0;max-inline-size:100%;overflow:hidden}
+dialog .modal-head h2,dialog .eyebrow,dialog label,dialog button,dialog select{word-break:keep-all;overflow-wrap:normal}
+dialog button,dialog .money-input>span{white-space:nowrap}
+#transactionModal .form-grid{grid-template-columns:minmax(0,1fr)}
+@media(max-width:760px){
+  dialog{width:min(430px,calc(100% - 28px))}
+  dialog form{overflow:hidden}
+}
+
+/* Readable settings and account surfaces */
+.settings-heading{max-width:720px;margin:0 auto 14px}.settings-heading h2{font-size:22px}.settings-heading p{margin-top:4px;color:var(--muted);font-size:11px}
+.settings-list{box-shadow:none}.settings-row{min-height:84px;padding:16px 20px}.settings-row>svg{width:26px;height:26px}.settings-row b{font-size:15px}.settings-row small{font-size:10px;line-height:1.5}
+#accountDialog{width:min(520px,calc(100% - 18px))}#accountDialog form{gap:18px;padding:26px}#accountDialog .modal-head{align-items:flex-start}#accountDialog .modal-head h2{font-size:23px}#accountDialog .eyebrow{font-size:10px}#accountDialog label{font-size:13px}#accountDialog input{min-height:48px;font-size:16px}#accountDialog .account-session{display:grid;gap:13px}#accountDialog .account-session[hidden]{display:none}#accountDialog .account-status{font-size:13px;line-height:1.75}#accountDialog .sync-state{font-size:12px}#accountDialog .secondary-btn,#accountDialog .primary-btn{min-height:46px;font-size:13px}#accountDialog .close-btn{width:40px;height:40px;font-size:20px}
+.tx-row [data-delete],.card-history-row [data-delete-card-history]{display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid #f0d3d5;border-radius:50%;background:#fff3f3;color:#b34f59;font-size:15px;font-weight:800;line-height:1}
+@media(max-width:760px){.settings-heading{margin-bottom:10px}.settings-row{min-height:78px;padding:14px 16px}.settings-row b{font-size:14px}#accountDialog form{padding:22px 20px}#accountDialog .account-status{font-size:12px}}
