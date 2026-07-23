@@ -10,7 +10,7 @@
     <form id="accountForm">
       <div class="modal-head">
         <div><p class="eyebrow">CLOUDFLARE ACCOUNT</p><h2>アカウント</h2></div>
-        <button type="button" class="close-btn" data-account-close>×</button>
+        <button type="button" class="close-btn" data-account-close>← 戻る</button>
       </div>
       <div class="auth-fields">
         <label>アカウント名<input name="username" autocomplete="username" minlength="3" maxlength="32" required placeholder="haruka"></label>
@@ -75,8 +75,8 @@
     if (user) {
       dialog.querySelector("[data-session-name]").textContent = user.username;
       dialog.querySelector("[data-session-role]").textContent = user.role === "admin" ? "管理者" : "";
-      logoutButton.hidden = user.id === "local-device";
-      deleteButton.hidden = user.id === "local-device";
+      logoutButton.hidden = false;
+      deleteButton.hidden = false;
       sessionError.textContent = "";
     }
   }
@@ -177,19 +177,20 @@
   });
 
   dialog.querySelector("[data-logout]").addEventListener("click", async () => {
-    if (user?.id === "local-device") { dialog.close(); return; }
-    try { await request("/api/auth", { method: "POST", body: JSON.stringify({ action: "logout" }) }); } catch {}
+    if (user?.id !== "local-device") try { await request("/api/auth", { method: "POST", body: JSON.stringify({ action: "logout" }) }); } catch {}
     user = null; hydrated = false;
     window.ExpenceFinanceStore?.reset(); window.ExpenceWorkspaceStore?.reset(); window.ExpenceSalaryStore?.reset(); window.ExpenceAcademicStore?.reset();
     notifyAccount(); window.appNav?.("dashboard"); dialog.close();
   });
 
   dialog.querySelector("[data-delete-account]").addEventListener("click", async () => {
-    if (!user || user.id === "local-device") return;
-    if (!confirm(`アカウント「${user.username}」とCloudflare上の保存データを削除しますか？\nこの操作は取り消せません。`)) return;
+    if (!user) return;
+    const isLocal = user.id === "local-device";
+    const target = isLocal ? "Local端末のアカウントと端末内の保存データ" : `アカウント「${user.username}」とCloudflare上の保存データ`;
+    if (!confirm(`${target}を削除しますか？\nこの操作は取り消せません。`)) return;
     deleteButton.disabled = true; sessionError.textContent = "";
     try {
-      await request("/api/auth", { method:"POST", body:JSON.stringify({ action:"delete" }) });
+      if (!isLocal) await request("/api/auth", { method:"POST", body:JSON.stringify({ action:"delete" }) });
       user = null; hydrated = false;
       window.ExpenceFinanceStore?.reset(); window.ExpenceWorkspaceStore?.reset(); window.ExpenceSalaryStore?.reset(); window.ExpenceAcademicStore?.reset();
       notifyAccount(); window.appNav?.("dashboard"); dialog.close();

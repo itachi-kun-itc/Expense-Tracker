@@ -44,7 +44,7 @@
   function normalizeState(value) {
     const base = emptyState();
     const source = value && typeof value === "object" ? value : {};
-    let jobs = Array.isArray(source.jobs) && source.jobs.length ? source.jobs : null;
+    let jobs = Array.isArray(source.jobs) ? source.jobs : null;
     if (!jobs) {
       const job = newJob("勤務先1");
       job.rules = Array.isArray(source.rules) && source.rules.length ? source.rules : job.rules;
@@ -76,8 +76,8 @@
         rulesByMonth
       };
     });
-    const activeJobId = jobs.some(job => job.id === Number(source.activeJobId)) ? Number(source.activeJobId) : jobs[0].id;
-    const shifts = Array.isArray(source.shifts) ? source.shifts.map(shift => {
+    const activeJobId = jobs.some(job => job.id === Number(source.activeJobId)) ? Number(source.activeJobId) : jobs[0]?.id || null;
+    const shifts = jobs.length && Array.isArray(source.shifts) ? source.shifts.map(shift => {
       const dates = [...new Set((Array.isArray(shift.dates) ? shift.dates : [shift.date]).filter(date => /^\d{4}-\d{2}-\d{2}$/.test(String(date))))].sort();
       const breaks = Array.isArray(shift.breaks)
         ? shift.breaks.map(item => ({ id:Number(item.id) || Date.now() + Math.random(), start:item.start === "" ? "" : normalizeTime(item.start,""), end:item.end === "" ? "" : normalizeTime(item.end,"") }))
@@ -136,6 +136,7 @@
   }
   const shiftDates = shift => Array.isArray(shift.dates) && shift.dates.length ? shift.dates : [shift.date].filter(Boolean);
   const isoDate = date => date.toLocaleDateString("sv-SE");
+  function offsetMonthValue(value, offset) { const [year,month]=value.split("-").map(Number),date=new Date(year,month-1+offset,1,12);return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`; }
   function dateInMonth(year, monthIndex, day) {
     const lastDay = new Date(year, monthIndex + 1, 0).getDate();
     return new Date(year, monthIndex, Math.min(lastDay, Math.max(1, Number(day) || 1)), 12);
@@ -146,7 +147,7 @@
     const payday = Number(job.payday) || 25, closingDay = Number(job.closingDay) || 20;
     const payment = dateInMonth(year, month - 1, payday);
     let end = dateInMonth(year, month - 1, closingDay);
-    if (end >= payment) end = dateInMonth(year, month - 2, closingDay);
+    if (end > payment) end = dateInMonth(year, month - 2, closingDay);
     const previousEnd = dateInMonth(end.getFullYear(), end.getMonth() - 1, closingDay);
     const start = new Date(previousEnd); start.setDate(start.getDate() + 1);
     return { start:isoDate(start), end:isoDate(end), payment:isoDate(payment), ruleMonth:paymentMonth, configured };
@@ -234,12 +235,12 @@
   let jobDialogJobId = null, longPressTimer = null, suppressJobClickUntil = 0;
   const jobDialog = document.createElement("dialog");
   jobDialog.id = "jobDialog";
-  jobDialog.innerHTML = `<form method="dialog" data-job-form><div class="modal-head"><div><p class="eyebrow">WORKPLACE</p><h2 data-job-dialog-title>勤務先を追加</h2></div><button type="button" class="close-btn" data-job-close>×</button></div><label>勤務先名<input type="text" name="jobName" maxlength="30" required placeholder="カフェ"></label><div class="job-setting-grid"><label>給料締め日<span><input type="number" name="closingDay" min="1" max="31" placeholder="20">日</span></label><label>給料日<span><input type="number" name="payday" min="1" max="31" placeholder="5">日</span></label></div><label>給与制度<select name="payType"><option value="hourly">時給制</option><option value="session">1コマ制</option></select></label><button type="button" class="job-dialog-delete" data-dialog-delete-job>勤務先を削除</button><button class="primary-btn wide">保存する</button></form>`;
+  jobDialog.innerHTML = `<form method="dialog" data-job-form><div class="modal-head"><div><p class="eyebrow">WORKPLACE</p><h2 data-job-dialog-title>勤務先を追加</h2></div><button type="button" class="close-btn" data-job-close>← 戻る</button></div><label>勤務先名<input type="text" name="jobName" maxlength="30" required placeholder="カフェ"></label><div class="job-setting-grid"><label>給料締め日<span><input type="number" name="closingDay" min="1" max="31" placeholder="20">日</span></label><label>給料日<span><input type="number" name="payday" min="1" max="31" placeholder="5">日</span></label></div><label>給与制度<select name="payType"><option value="hourly">時給制</option><option value="session">1コマ制</option></select></label><button type="button" class="job-dialog-delete" data-dialog-delete-job>勤務先を削除</button><button class="primary-btn wide">保存する</button></form>`;
   document.body.appendChild(jobDialog);
   const rateDialog = document.createElement("dialog");
   rateDialog.id = "salaryRateDialog";
   rateDialog.className = "salary-rate-dialog";
-  rateDialog.innerHTML = `<form method="dialog"><div class="modal-head"><div><p class="eyebrow">HOURLY RATE</p><h2>時給を設定</h2></div><button type="button" class="close-btn" data-rate-close>×</button></div><div data-rate-dialog-body></div></form>`;
+  rateDialog.innerHTML = `<form method="dialog"><div class="modal-head"><div><p class="eyebrow">HOURLY RATE</p><h2>時給を設定</h2></div><button type="button" class="close-btn rate-back-btn" data-rate-close>← 戻る</button></div><div data-rate-dialog-body></div></form>`;
   document.body.appendChild(rateDialog);
 
   function openJobDialog(mode, jobId = salaryState.activeJobId) {
@@ -251,16 +252,20 @@
     jobDialog.querySelector('[name="closingDay"]').value = job?.closingDay || "";
     jobDialog.querySelector('[name="payday"]').value = job?.payday || "";
     jobDialog.querySelector('[name="payType"]').value = job?.payType || "hourly";
-    jobDialog.querySelector("[data-dialog-delete-job]").hidden = mode === "add" || salaryState.jobs.length < 2;
+    jobDialog.querySelector("[data-dialog-delete-job]").hidden = mode === "add";
     jobDialog.showModal();
     setTimeout(() => jobDialog.querySelector('[name="jobName"]').focus(), 50);
   }
   function deleteJob(job) {
-    if (!job || salaryState.jobs.length < 2) return;
-    if (!confirm(`${job.name}を削除しますか？\n登録済みシフトは別の勤務先へ移動します。`)) return;
+    if (!job) return;
+    const hasFallback = salaryState.jobs.length > 1;
+    const message = hasFallback ? `${job.name}を削除しますか？\n登録済みシフトは別の勤務先へ移動します。` : `${job.name}を削除しますか？\nこの勤務先の登録済みシフトも削除されます。`;
+    if (!confirm(message)) return;
+    window.ExpenceFinanceStore?.removeSalaryIncome?.(`salary-month:${job.id}:${salaryState.month}`,`salary:${job.id}:`,salaryState.month);
     const fallback=salaryState.jobs.find(item=>item.id!==job.id);
-    salaryState.shifts.forEach(shift=>{if(Number(shift.jobId)===job.id)shift.jobId=fallback.id;});
-    salaryState.jobs=salaryState.jobs.filter(item=>item.id!==job.id);salaryState.activeJobId=fallback.id;salaryScreen="jobs";jobDialog.close();persistAndRender();
+    if(fallback)salaryState.shifts.forEach(shift=>{if(Number(shift.jobId)===job.id)shift.jobId=fallback.id;});
+    else salaryState.shifts=salaryState.shifts.filter(shift=>Number(shift.jobId)!==job.id);
+    salaryState.jobs=salaryState.jobs.filter(item=>item.id!==job.id);salaryState.activeJobId=fallback?.id||null;salaryScreen="jobs";jobDialog.close();persistAndRender();
   }
 
   function rateSettingsMarkup(job = activeJob()) {
@@ -298,10 +303,10 @@
     const cycle = payCycle(jobFor(shift.jobId));
     const shiftJob = jobFor(shift.jobId);
     const dates = shiftDates(shift).filter(date => inCycle(date, cycle));
-    return `<div class="shift-row salary-compact-shift" data-shift-id="${shift.id}"><div class="salary-shift-calendar"><div class="salary-calendar-week"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div><div class="salary-calendar-days">${cycle.configured?cycleDates(cycle).map((date,index)=>{const day=new Date(`${date}T12:00:00`),selected=dates.includes(date);return `<button type="button" data-toggle-shift-date="${date}" class="${selected?"selected":""}" style="--calendar-column:${day.getDay()+1}" title="${day.getMonth()+1}月${day.getDate()}日">${day.getDate()}</button>`;}).join(""):""}</div></div><div class="salary-shift-line"><input type="time" step="60" data-time-input data-shift-field="start" value="${shift.start}" aria-label="開始時刻"><i>〜</i><input type="time" step="60" data-time-input data-shift-field="end" value="${shift.end}" aria-label="終了時刻"></div><div class="salary-break-lines">${(shift.breaks||[]).length?(shift.breaks||[]).map(item=>`<div data-break-id="${item.id}"><span class="salary-break-label">休憩</span><input type="time" step="60" data-time-input data-break-field="start" value="${item.start}" aria-label="休憩開始"><i>〜</i><input type="time" step="60" data-time-input data-break-field="end" value="${item.end}" aria-label="休憩終了"><button type="button" data-delete-break aria-label="休憩を削除">×</button></div>`).join(""):`<button type="button" class="salary-inline-action" data-add-break>＋休憩</button>`}</div>${shiftJob.payType === "session"?`<label class="salary-session-count">コマ数<input type="number" min="1" step="1" data-shift-field="sessions" value="${shift.sessions}" placeholder="2"></label>`:""}<button type="button" class="row-delete" data-delete-shift aria-label="シフトを削除">×</button></div>`;
+    return `<div class="shift-row salary-compact-shift" data-shift-id="${shift.id}"><div class="salary-shift-calendar"><div class="salary-calendar-week"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div><div class="salary-calendar-days">${cycle.configured?cycleDates(cycle).map((date,index)=>{const day=new Date(`${date}T12:00:00`),selected=dates.includes(date);return `<button type="button" data-toggle-shift-date="${date}" class="${selected?"selected":""}" style="--calendar-column:${day.getDay()+1}" title="${day.getMonth()+1}月${day.getDate()}日">${day.getDate()}</button>`;}).join(""):""}</div></div><div class="salary-shift-line"><input type="time" step="60" data-time-input data-shift-field="start" value="${shift.start}" aria-label="開始時刻"><i>〜</i><input type="time" step="60" data-time-input data-shift-field="end" value="${shift.end}" aria-label="終了時刻"></div><div class="salary-break-lines">${(shift.breaks||[]).length?(shift.breaks||[]).map(item=>`<div data-break-id="${item.id}"><span class="salary-break-label">休憩</span><input type="time" step="60" data-time-input data-break-field="start" value="${item.start}" aria-label="休憩開始"><i>〜</i><input type="time" step="60" data-time-input data-break-field="end" value="${item.end}" aria-label="休憩終了"><button type="button" data-delete-break aria-label="休憩を削除">削除</button></div>`).join(""):`<button type="button" class="salary-inline-action" data-add-break>＋休憩</button>`}</div>${shiftJob.payType === "session"?`<label class="salary-session-count">コマ数<input type="number" min="1" step="1" data-shift-field="sessions" value="${shift.sessions}" placeholder="2"></label>`:""}<button type="button" class="row-delete" data-delete-shift aria-label="シフトを削除">削除</button></div>`;
   }
   function ruleRow(rule, index = 0) {
-    return `<div class="rule-row" data-rule-id="${rule.id}"><label class="rule-name"><span>区分名</span><input type="text" data-rule-field="name" maxlength="20" value="${escapeHtml(rule.name)}" placeholder="${ruleExampleName(index)}"></label><div class="rule-time-range"><label><span>開始</span><input type="time" step="60" data-time-input data-rule-field="start" value="${rule.start}"></label><i>〜</i><label><span>終了</span><input type="time" step="60" data-time-input data-rule-field="end" value="${rule.end}"></label></div><label class="rule-rate"><span>時給</span><div><input type="number" min="0" step="1" data-rule-field="rate" value="${rule.rate}" placeholder="1200"><em>円/時</em></div></label><button type="button" class="row-delete" data-delete-rule aria-label="時間帯を削除">×</button></div>`;
+    return `<div class="rule-row" data-rule-id="${rule.id}"><label class="rule-name"><span>区分名</span><input type="text" data-rule-field="name" maxlength="20" value="${escapeHtml(rule.name)}" placeholder="${ruleExampleName(index)}"></label><div class="rule-time-range"><label><span>開始</span><input type="time" step="60" data-time-input data-rule-field="start" value="${rule.start}"></label><i>〜</i><label><span>終了</span><input type="time" step="60" data-time-input data-rule-field="end" value="${rule.end}"></label></div><label class="rule-rate"><span>時給</span><div><input type="number" min="0" step="1" data-rule-field="rate" value="${rule.rate}" placeholder="1200"><em>円/時</em></div></label><button type="button" class="row-delete" data-delete-rule aria-label="時間帯を削除">削除</button></div>`;
   }
   function updateShiftResult(row, shift) {
     const calculated = calculateShift(shift, payCycle(jobFor(shift.jobId))), result = row?.querySelector(".shift-result");
@@ -323,14 +328,46 @@
     if (!payslips.length) return '<p class="salary-empty">保存された明細はありません</p>';
     return payslips.map(file => `<div class="payslip-row"><span>${escapeHtml(file.period || "----年--月")}</span><b>${escapeHtml(file.name)}</b><a href="/api/files/${encodeURIComponent(file.id)}" target="_blank" rel="noopener">表示</a><button type="button" data-delete-payslip="${escapeHtml(file.id)}">削除</button></div>`).join("");
   }
+  function nextPayForecast(referenceDate = isoDate(new Date())) {
+    const reference = /^\d{4}-\d{2}-\d{2}$/.test(String(referenceDate)) ? String(referenceDate) : isoDate(new Date());
+    const [year, month] = reference.split("-").map(Number);
+    const forecasts = salaryState.jobs.filter(job => job.status !== "retired" && Number(job.payday) > 0 && Number(job.closingDay) > 0).map(job => {
+      let paymentMonth = `${year}-${String(month).padStart(2,"0")}`;
+      let cycle = payCycle(job,paymentMonth);
+      if (cycle.payment < reference) {
+        const following = new Date(year,month,1,12);
+        paymentMonth = `${following.getFullYear()}-${String(following.getMonth()+1).padStart(2,"0")}`;
+        cycle = payCycle(job,paymentMonth);
+      }
+      return { jobId:job.id, name:job.name, date:cycle.payment, start:cycle.start, end:cycle.end, amount:totals(monthShifts(job,cycle),cycle).wage, sourceId:`salary-month:${job.id}:${paymentMonth}` };
+    }).sort((a,b)=>a.date.localeCompare(b.date)||String(a.jobId).localeCompare(String(b.jobId)));
+    if (!forecasts.length) return null;
+    const date = forecasts[0].date, entries = forecasts.filter(item=>item.date===date);
+    return { date, amount:entries.reduce((sum,item)=>sum+Number(item.amount||0),0), name:entries.map(item=>item.name).join("・"), entries };
+  }
+  function recalculateAllSalaryIncome() {
+    const finance = window.ExpenceFinanceStore;
+    if (!finance?.syncSalaryIncomes) return syncCurrentSalaryIncome();
+    const existing = finance.transactions?.() || [], todayMonth = isoDate(new Date()).slice(0,7), entries = [];
+    salaryState.jobs.forEach(job => {
+      const months = new Set([salaryState.month,todayMonth,...Object.keys(job.rulesByMonth||{})]);
+      salaryState.shifts.filter(shift=>Number(shift.jobId)===job.id).forEach(shift=>shiftDates(shift).forEach(date=>{const month=String(date).slice(0,7);if(/^\d{4}-\d{2}$/.test(month)){months.add(month);months.add(offsetMonthValue(month,1));}}));
+      existing.forEach(item=>{const match=String(item.sourceId||"").match(/^salary-month:([^:]+):(\d{4}-\d{2})$/);if(match&&String(match[1])===String(job.id))months.add(match[2]);});
+      [...months].filter(month=>/^\d{4}-\d{2}$/.test(month)).sort().forEach(month=>{
+        const cycle=payCycle(job,month);if(!cycle.configured)return;const amount=totals(monthShifts(job,cycle),cycle).wage;if(amount>0)entries.push({sourceId:`salary-month:${job.id}:${month}`,date:cycle.payment,amount,memo:`${job.name} 給与`});
+      });
+    });
+    return finance.syncSalaryIncomes(entries);
+  }
   function syncCurrentSalaryIncome() {
-    const job = activeJob(), cycle = payCycle(job), sourceId = `salary-month:${job.id}:${salaryState.month}`, legacySourcePrefix = `salary:${job.id}:`;
+    const job = activeJob();if(!job)return null;
+    const cycle = payCycle(job), sourceId = `salary-month:${job.id}:${salaryState.month}`, legacySourcePrefix = `salary:${job.id}:`;
     const amount = cycle.configured ? totals(monthShifts(job,cycle),cycle).wage : 0;
     if (cycle.configured && amount > 0) return window.ExpenceFinanceStore?.upsertSalaryIncome?.({ sourceId, legacySourcePrefix, date:cycle.payment, amount, memo:`${job.name} 給与`, selectMonth:false });
     window.ExpenceFinanceStore?.removeSalaryIncome?.(sourceId,legacySourcePrefix,salaryState.month);
     return null;
   }
-  function saveAndSync() { save(false,false); syncCurrentSalaryIncome(); }
+  function saveAndSync() { save(false,false); recalculateAllSalaryIncome(); }
   function persistAndRender() { saveAndSync(); render(); }
   async function refreshPayslips() {
     try {
@@ -428,16 +465,20 @@
       const shift=salaryState.shifts.find(item=>item.id===Number(shiftRowElement.dataset.shiftId));
       const numeric = event.target.type === "number" || event.target.dataset.shiftField === "jobId";
       const field=event.target.dataset.shiftField,value=event.target.dataset.timeInput!==undefined?(event.target.value===""?"":normalizeTime(event.target.value,shift[field])):numeric?(event.target.value===""?"":Number(event.target.value)):event.target.value;
-      shift[field]=value;if(event.target.dataset.timeInput!==undefined)event.target.value=value;
+      shift[field]=value;if(event.target.dataset.timeInput!==undefined){event.target.value=value;save(false,false);updateVisibleCalculations();return;}
       if(field==="jobId"){salaryState.activeJobId=Number(value);persistAndRender();return;}saveAndSync();updateVisibleCalculations();return;
     }
     const breakRowElement = event.target.closest("[data-break-id]");
     if (breakRowElement && event.target.dataset.breakField) {
       const shiftRow=breakRowElement.closest("[data-shift-id]"),shift=salaryState.shifts.find(item=>item.id===Number(shiftRow.dataset.shiftId)),item=shift?.breaks?.find(entry=>Number(entry.id)===Number(breakRowElement.dataset.breakId));
-      if(item){const field=event.target.dataset.breakField,value=event.target.value===""?"":normalizeTime(event.target.value,item[field]);item[field]=value;event.target.value=value;saveAndSync();updateVisibleCalculations();}return;
+      if(item){const field=event.target.dataset.breakField,value=event.target.value===""?"":normalizeTime(event.target.value,item[field]);item[field]=value;event.target.value=value;save(false,false);updateVisibleCalculations();}return;
     }
     const ruleRowElement = event.target.closest("[data-rule-id]");
-    if (ruleRowElement && event.target.dataset.ruleField) { const rule=rulesFor(activeJob(),salaryState.month,true).find(item=>item.id===Number(ruleRowElement.dataset.ruleId)),field=event.target.dataset.ruleField,value=event.target.dataset.timeInput!==undefined?(event.target.value===""?"":normalizeTime(event.target.value,rule[field])):event.target.type==="number"?(event.target.value===""?"":Number(event.target.value)):event.target.value;rule[field]=value;if(event.target.dataset.timeInput!==undefined)event.target.value=value;saveAndSync();updateVisibleCalculations();render(); }
+    if (ruleRowElement && event.target.dataset.ruleField) { const rule=rulesFor(activeJob(),salaryState.month,true).find(item=>item.id===Number(ruleRowElement.dataset.ruleId)),field=event.target.dataset.ruleField,value=event.target.dataset.timeInput!==undefined?(event.target.value===""?"":normalizeTime(event.target.value,rule[field])):event.target.type==="number"?(event.target.value===""?"":Number(event.target.value)):event.target.value;rule[field]=value;if(event.target.dataset.timeInput!==undefined){event.target.value=value;save(false,false);updateVisibleCalculations();return;}saveAndSync();updateVisibleCalculations();render(); }
+  });
+  document.addEventListener("focusout", event => {
+    if (!event.target.matches("[data-time-input]")) return;
+    setTimeout(() => { if (document.activeElement?.matches?.("[data-time-input]")) return; saveAndSync(); updateVisibleCalculations(); }, 0);
   });
   document.addEventListener("input", event => {
     if (event.target.matches("[data-job-session-rate]")) { activeJob().sessionRate=event.target.value===""?"":Math.max(0,Number(event.target.value)||0);save(false,false);updateVisibleCalculations();return; }
@@ -464,10 +505,13 @@
   window.addEventListener("expence-finance-render", () => { if (view.classList.contains("active")) render(); });
   window.ExpenceSalaryStore = {
     snapshot: () => structuredClone(salaryState),
-    restore: value => { salaryState=normalizeState(value); save(true); render(); },
-    reset: () => { salaryState=emptyState(); save(true); render(); }
+    nextPayForecast,
+    recalculateAllSalaryIncome,
+    restore: value => { salaryState=normalizeState(value); save(true); recalculateAllSalaryIncome(); render(); },
+    reset: () => { salaryState=emptyState(); save(true); recalculateAllSalaryIncome(); render(); }
   };
   localStorage.setItem(KEY, JSON.stringify(salaryState));
+  recalculateAllSalaryIncome();
   render();
   window.ExpenceFinanceStore?.rerender?.();
 })();

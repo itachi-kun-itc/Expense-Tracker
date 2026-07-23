@@ -118,6 +118,12 @@
 .salary-view .row-delete,.salary-view [data-delete-break],.salary-rate-dialog .row-delete{display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid #f0d3d5;border-radius:50%;background:#fff3f3;color:#b34f59;font-size:15px;font-weight:800;line-height:1}
 .salary-rate-dialog .salary-rate-settings .rule-row>.row-delete{width:30px;height:30px;align-self:center}
 
+/* Keep month and time pickers inside their salary fields */
+.salary-view input[type="month"],.salary-view input[type="time"],.salary-rate-dialog input[type="time"]{box-sizing:border-box;inline-size:100%;min-inline-size:0!important;max-inline-size:100%!important}
+.salary-view input[type="month"]::-webkit-date-and-time-value,.salary-view input[type="time"]::-webkit-date-and-time-value,.salary-rate-dialog input[type="time"]::-webkit-date-and-time-value{min-width:0;width:100%;text-align:left}
+.salary-shift-line,.salary-break-lines,.salary-break-lines>div,.payslip-upload,.rule-time-range,.rule-time-range>label{min-width:0;max-width:100%}
+.salary-shift-line>input,.salary-break-lines input,.payslip-upload>input,.rule-time-range input{min-width:0!important;max-width:100%!important}
+
 /* De-emphasized workplace selector */
 .salary-workplace-bar{gap:6px;margin-bottom:8px;padding:8px 10px;border-radius:10px;box-shadow:none}.salary-job-select{grid-template-columns:auto minmax(130px,210px);gap:7px;font-size:8px}.salary-job-select select{height:34px;padding-left:9px;font-size:11px}.salary-workplace-primary{gap:5px}.salary-workplace-primary .job-actions{gap:2px;padding-bottom:0}.salary-workplace-primary .job-actions button{min-height:30px;padding:5px 7px;font-size:9px}.salary-workplace-bar>.employment-switch{padding:2px}.salary-workplace-bar>.employment-switch button{min-height:28px;padding:5px 7px;font-size:9px}
 @media(max-width:760px){.salary-workplace-bar{padding:8px 9px}.salary-workplace-bar .salary-job-select{grid-template-columns:auto minmax(0,1fr);gap:6px}.salary-workplace-bar .salary-job-select select{height:36px;font-size:13px}.salary-workplace-primary .job-actions{padding-top:3px}.salary-workplace-bar>.employment-switch{margin-top:3px}}
@@ -148,3 +154,64 @@
 .salary-compact-shift.shift-row{grid-template-columns:minmax(0,1fr) auto}.salary-compact-shift .salary-session-count{grid-column:2;grid-row:2/4}.salary-break-lines{margin-top:3px;padding-top:9px;border-top:1px solid #e7eaf0}.salary-break-lines>div{grid-template-columns:auto minmax(82px,1fr) 12px minmax(82px,1fr) 22px}.salary-break-label{padding-right:4px;color:var(--muted);font-size:8px;font-weight:700}.salary-compact-shift .shift-result{display:none}
 @media(max-width:760px){.salary-compact-shift.shift-row{grid-template-columns:1fr}.salary-compact-shift .salary-session-count{grid-column:1;grid-row:auto}}
 @media(max-width:430px){.salary-break-lines>div{grid-template-columns:auto 1fr 10px 1fr 20px}}
+
+/* Final containment for the hourly-rate dialog */
+#salaryRateDialog{width:min(520px,calc(100% - 16px));max-width:calc(100% - 16px);overflow:hidden}
+#salaryRateDialog form,#salaryRateDialog [data-rate-dialog-body],#salaryRateDialog .salary-rate-settings,#salaryRateDialog .rule-list,#salaryRateDialog .rule-row{box-sizing:border-box;width:100%;min-width:0;max-width:100%}
+#salaryRateDialog form{padding:20px 16px;overflow:hidden}
+#salaryRateDialog [data-rate-dialog-body]{max-height:min(70dvh,620px);overflow-x:hidden;overflow-y:auto;padding:0 2px}
+#salaryRateDialog .salary-rate-settings{padding:0;border:0;background:transparent}
+#salaryRateDialog .salary-rate-settings .base-rate-picker{grid-template-columns:52px minmax(0,1fr);width:100%;min-width:0}
+#salaryRateDialog .salary-rate-settings .base-rate-picker>div{min-width:0;max-width:100%}
+#salaryRateDialog .salary-rate-settings .rule-row{grid-template-columns:minmax(0,1fr) 30px!important;gap:9px;padding:13px 2px!important;overflow:hidden}
+#salaryRateDialog .salary-rate-settings .rule-name{grid-column:1;grid-row:1;min-width:0;padding:0}
+#salaryRateDialog .salary-rate-settings .rule-row>.row-delete{grid-column:2;grid-row:1;position:static;width:30px;height:30px;align-self:center}
+#salaryRateDialog .salary-rate-settings .rule-rate{grid-column:1/-1;grid-row:2;width:min(190px,100%);min-width:0}
+#salaryRateDialog .salary-rate-settings .rule-time-range{grid-column:1/-1;grid-row:3;width:100%;min-width:0;max-width:100%;grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr);gap:6px}
+#salaryRateDialog .salary-rate-settings .rule-time-range label,#salaryRateDialog .salary-rate-settings .rule-time-range input{width:100%;min-width:0!important;max-width:100%!important;overflow:hidden}
+@media(max-width:400px){
+  #salaryRateDialog form{padding:18px 14px}
+  #salaryRateDialog .salary-rate-settings .rule-time-range{grid-template-columns:minmax(0,1fr)}
+  #salaryRateDialog .salary-rate-settings .rule-time-range i{display:none}
+}
+
+/* Keep every modal close button in its own non-overlapping column. */
+dialog .modal-head{display:grid;grid-template-columns:minmax(0,1fr) 40px;align-items:start;gap:12px;width:100%;min-width:0}
+dialog .modal-head>div{min-width:0;padding-top:2px}
+dialog .modal-head .close-btn{position:static;grid-column:2;justify-self:end;align-self:start;display:grid;place-items:center;box-sizing:border-box;width:40px;min-width:40px;max-width:40px;height:40px;min-height:40px;margin:0;padding:0;line-height:1;flex:none;z-index:1}
+dialog .modal-head h2,dialog .modal-head .eyebrow{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+
+/* Separate hourly-rate bands without adding bulky cards. */
+#salaryRateDialog .salary-rate-settings .base-rate-picker{padding-bottom:14px;border-bottom:1px dashed #cbd2dc}
+#salaryRateDialog .salary-rate-settings .rule-list{gap:0;margin-top:4px}
+#salaryRateDialog .salary-rate-settings .rule-row,#salaryRateDialog .salary-rate-settings .rule-row:first-child{border-top:1px dashed #cbd2dc;padding-block:16px!important}
+#salaryRateDialog .salary-rate-settings .rule-row:first-child{border-top:0}
+
+/* Clear back and delete controls that remain fully inside the rate dialog. */
+#salaryRateDialog .modal-head{grid-template-columns:minmax(0,1fr) auto}
+#salaryRateDialog .modal-head .rate-back-btn{display:inline-flex;align-items:center;justify-content:center;width:auto;min-width:58px;max-width:none;height:34px;min-height:34px;padding:0 9px;border:1px solid var(--line);border-radius:10px;background:#f5f6f4;font-size:9px;font-weight:800;white-space:nowrap}
+#salaryRateDialog .salary-rate-settings .rule-row{grid-template-columns:minmax(0,1fr) 44px!important;padding-inline:0!important}
+#salaryRateDialog .salary-rate-settings .rule-row>.row-delete{width:44px;height:30px;border-radius:8px;font-size:8px;white-space:nowrap}
+
+/* Final compact rate layout: one safe column, no control beside the scrollbar. */
+#salaryRateDialog [data-rate-dialog-body]{padding:0 10px 0 1px;scrollbar-gutter:stable}
+#salaryRateDialog .salary-rate-settings .rule-row{grid-template-columns:minmax(0,1fr)!important;width:100%;padding:14px 0!important}
+#salaryRateDialog .salary-rate-settings .rule-name{grid-column:1;grid-row:1;width:100%;padding:0}
+#salaryRateDialog .salary-rate-settings .rule-rate{grid-column:1;grid-row:2;width:min(190px,100%)}
+#salaryRateDialog .salary-rate-settings .rule-time-range{grid-column:1;grid-row:3;width:100%}
+#salaryRateDialog .salary-rate-settings .rule-row>.row-delete{grid-column:1;grid-row:4;position:static;justify-self:end;width:auto;min-width:46px;height:30px;padding:0 9px}
+
+/* Text actions replace every ambiguous close/delete cross. */
+dialog .modal-head{grid-template-columns:minmax(0,1fr) auto}
+dialog .modal-head .close-btn{display:inline-flex;align-items:center;justify-content:center;width:auto;min-width:58px;max-width:none;height:34px;min-height:34px;padding:0 9px;border:1px solid var(--line);border-radius:10px;background:#f5f6f4;font-size:9px;font-weight:800;white-space:nowrap}
+#accountDialog .modal-head .close-btn{width:auto;min-width:58px;max-width:none;height:34px;min-height:34px;font-size:9px}
+.salary-view .row-delete,.salary-view [data-delete-break]{width:auto;min-width:44px;height:30px;padding:0 8px;border-radius:8px;font-size:8px;white-space:nowrap}
+.salary-compact-shift.shift-row{padding-right:58px}
+.salary-break-lines>div{grid-template-columns:auto minmax(0,1fr) 12px minmax(0,1fr) 48px}
+
+/* Shared overflow guard for every app dialog. */
+dialog,dialog form,dialog form>*,dialog .form-grid,dialog label,dialog input,dialog select{box-sizing:border-box;min-width:0;max-width:100%}
+dialog form{overflow-x:hidden}
+body,.app-shell,main,.content,.view,.panel{min-width:0;max-width:100%}
+body{overflow-x:hidden}
+@media(max-width:430px){dialog .form-grid{grid-template-columns:minmax(0,1fr)}dialog form{padding-inline:16px}.salary-break-lines>div{grid-template-columns:auto minmax(0,1fr) 10px minmax(0,1fr)}.salary-break-lines [data-delete-break]{grid-column:1/-1;justify-self:end}}
