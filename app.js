@@ -77,6 +77,7 @@ function salaryPaydays() {
   catch { return []; }
 }
 function salarySchedule(month) {
+  const stored=window.ExpenceSalaryStore?.paymentSchedule?.(month);if(Array.isArray(stored))return stored.map(item=>({...item,date:new Date(`${item.date}T12:00:00`)})).sort((a,b)=>a.date-b.date||String(a.id).localeCompare(String(b.id)));
   const [year,value]=month.split("-").map(Number),lastDay=new Date(year,value,0).getDate();
   return salaryPaydays().map(item=>({...item,date:new Date(year,value-1,Math.min(lastDay,item.day))})).sort((a,b)=>a.date-b.date||String(a.id).localeCompare(String(b.id)));
 }
@@ -95,7 +96,7 @@ function refreshAutomaticCarryovers() { const selected=updateAutomaticCarryover(
 function setCarryover(amount,month=state.month,mode="manual",skipSync=false) { state.carryoversByMonth[month]=Number(amount)||0;state.carryoverModes[month]=mode;state.carryoverUpdatedAt[month]=new Date().toISOString();state.assets=state.carryoversByMonth[month];save(skipSync);render(); }
 function nextSalaryDates() {
   const now=new Date();now.setHours(0,0,0,0);
-  return salaryPaydays().map(job=>{let year=now.getFullYear(),month=now.getMonth(),last=new Date(year,month+1,0).getDate(),date=new Date(year,month,Math.min(last,job.day));if(date<now){month++;if(month>11){month=0;year++;}last=new Date(year,month+1,0).getDate();date=new Date(year,month,Math.min(last,job.day));}return {...job,date,days:Math.ceil((date-now)/86400000)};});
+  const month=now.toLocaleDateString("sv-SE").slice(0,7),rows=[...salarySchedule(month),...salarySchedule(monthOffset(month,1)),...salarySchedule(monthOffset(month,2))].filter(item=>item.date>=now);return rows.map(item=>({...item,days:Math.ceil((item.date-now)/86400000)})).sort((a,b)=>a.date-b.date||String(a.id).localeCompare(String(b.id)));
 }
 function toast(message="保存しました") { const element=document.querySelector("#toast"); element.textContent=message;element.classList.add("show");setTimeout(()=>element.classList.remove("show"),1800); }
 function shiftMonth(offset) { const [year,month]=state.month.split("-").map(Number), date=new Date(year,month-1+offset,1);state.month=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`;state.assets=carryoverForMonth();monthBudgets();save();render(); }

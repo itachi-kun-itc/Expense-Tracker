@@ -141,16 +141,16 @@
     const lastDay = new Date(year, monthIndex + 1, 0).getDate();
     return new Date(year, monthIndex, Math.min(lastDay, Math.max(1, Number(day) || 1)), 12);
   }
-  function payCycle(job, paymentMonth = salaryState.month) {
-    const [year, month] = paymentMonth.split("-").map(Number);
+  function payCycle(job, cycleMonth = salaryState.month) {
+    const [year, month] = cycleMonth.split("-").map(Number);
     const configured = Number(job.payday) > 0 && Number(job.closingDay) > 0;
     const payday = Number(job.payday) || 25, closingDay = Number(job.closingDay) || 20;
-    const payment = dateInMonth(year, month - 1, payday);
-    let end = dateInMonth(year, month - 1, closingDay);
-    if (end > payment) end = dateInMonth(year, month - 2, closingDay);
-    const previousEnd = dateInMonth(end.getFullYear(), end.getMonth() - 1, closingDay);
+    const end = dateInMonth(year, month - 1, closingDay);
+    const previousEnd = dateInMonth(year, month - 2, closingDay);
     const start = new Date(previousEnd); start.setDate(start.getDate() + 1);
-    return { start:isoDate(start), end:isoDate(end), payment:isoDate(payment), ruleMonth:paymentMonth, configured };
+    const paymentMonthOffset = payday > closingDay ? month - 1 : month;
+    const payment = dateInMonth(year, paymentMonthOffset, payday);
+    return { start:isoDate(start), end:isoDate(end), payment:isoDate(payment), ruleMonth:cycleMonth, configured };
   }
   function cycleDates(cycle) {
     const dates = [], cursor = new Date(`${cycle.start}T12:00:00`), end = new Date(`${cycle.end}T12:00:00`);
@@ -293,7 +293,7 @@
     const rateItems = [{ name:"基本", period:"全時間帯", amount:currentBaseRule.rate === "" ? "未設定" : money(currentBaseRule.rate) }, ...currentRules.slice(1).filter(rule => rule.rate !== "" && rule.rate != null).map((rule,index) => ({ name:rule.name || ruleExampleName(index), period:`${rule.start || "--:--"}〜${rule.end || "--:--"}`, amount:money(rule.rate) }))];
     const [salaryYear,salaryMonth] = salaryState.month.split("-").map(Number);
     view.innerHTML = `<div class="salary-month-row"><button type="button" data-salary-month-step="-1" aria-label="前月">‹</button><label><strong>${salaryYear}年${salaryMonth}月度</strong><input type="month" data-salary-month value="${salaryState.month}" aria-label="給与の年月"></label><button type="button" data-salary-month-step="1" aria-label="翌月">›</button></div>
-      <article class="salary-current-total"><span>今月の給料</span><strong data-month-wage>${money(monthTotal.wage)}</strong>${cycle.configured ? `<small>${dateLabel(cycle.start)}〜${dateLabel(cycle.end)}</small>` : "<small>締め日と振込日を設定してください</small>"}</article>
+      <article class="salary-current-total"><span>今月の給料</span><strong data-month-wage>${money(monthTotal.wage)}</strong>${cycle.configured ? `<small>${dateLabel(cycle.start)}〜${dateLabel(cycle.end)}・${dateLabel(cycle.payment)}振込</small>` : "<small>締め日と振込日を設定してください</small>"}</article>
       <section class="panel salary-compact-section"><div class="salary-compact-title"><h2>${currentJob.payType === "hourly" ? "時給" : "1コマ単価"}</h2></div>${currentJob.payType === "hourly" ? `<div class="salary-rate-list">${rateItems.map(item=>`<div><span>【${escapeHtml(item.name === "基本" ? "基本給" : item.name)}】</span><strong>${escapeHtml(item.amount)}</strong><small>${escapeHtml(item.period)}</small></div>`).join("")}</div><button type="button" class="salary-add-link" data-open-rate-settings>＋追加する</button>` : `<label class="salary-session-compact"><input type="number" min="0" step="1" data-job-session-rate value="${currentJob.sessionRate}" placeholder="1500"><span>円／コマ</span></label>`}</section>
       <section class="panel salary-compact-section salary-shifts"><div class="salary-compact-title"><h2>シフト入力</h2><select data-job-pay-type aria-label="給与制度"><option value="hourly" ${currentJob.payType === "hourly" ? "selected" : ""}>時給制</option><option value="session" ${currentJob.payType === "session" ? "selected" : ""}>1コマ制</option></select></div><div class="shift-list salary-compact-shifts">${shifts.length ? shifts.map(shiftRow).join("") : '<p class="salary-empty">シフトはありません</p>'}</div><button type="button" class="salary-add-link" data-add-shift ${cycle.configured ? "" : "disabled"}>＋追加</button></section>
       <section class="panel salary-compact-section payslip-panel"><div class="salary-compact-title"><h2>給与明細</h2></div><div class="payslip-upload"><input type="month" data-payslip-period value="${salaryState.month}"><label class="secondary-btn">ファイルを選択<input type="file" accept="application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg" data-payslip-file></label><button type="button" class="primary-btn" data-upload-payslip>アップロード</button></div><p class="payslip-note" data-payslip-note>PDF・PNG・JPEG、1ファイル10MBまで</p><div class="payslip-list">${renderPayslips()}</div></section>`;
@@ -330,20 +330,22 @@
   }
   function nextPayForecast(referenceDate = isoDate(new Date())) {
     const reference = /^\d{4}-\d{2}-\d{2}$/.test(String(referenceDate)) ? String(referenceDate) : isoDate(new Date());
-    const [year, month] = reference.split("-").map(Number);
-    const forecasts = salaryState.jobs.filter(job => job.status !== "retired" && Number(job.payday) > 0 && Number(job.closingDay) > 0).map(job => {
-      let paymentMonth = `${year}-${String(month).padStart(2,"0")}`;
-      let cycle = payCycle(job,paymentMonth);
-      if (cycle.payment < reference) {
-        const following = new Date(year,month,1,12);
-        paymentMonth = `${following.getFullYear()}-${String(following.getMonth()+1).padStart(2,"0")}`;
-        cycle = payCycle(job,paymentMonth);
-      }
-      return { jobId:job.id, name:job.name, date:cycle.payment, start:cycle.start, end:cycle.end, amount:totals(monthShifts(job,cycle),cycle).wage, sourceId:`salary-month:${job.id}:${paymentMonth}` };
-    }).sort((a,b)=>a.date.localeCompare(b.date)||String(a.jobId).localeCompare(String(b.jobId)));
+    const [year,month]=reference.split("-").map(Number);
+    const forecasts=salaryState.jobs.filter(job=>job.status!=="retired"&&Number(job.payday)>0&&Number(job.closingDay)>0).map(job=>{
+      const cycles=[];for(let offset=-1;offset<=2;offset++){const date=new Date(year,month-1+offset,1,12),cycleMonth=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`,cycle=payCycle(job,cycleMonth);if(cycle.payment>=reference)cycles.push(cycle);}
+      const cycle=cycles.sort((a,b)=>a.payment.localeCompare(b.payment))[0];if(!cycle)return null;
+      return {jobId:job.id,name:job.name,date:cycle.payment,start:cycle.start,end:cycle.end,amount:totals(monthShifts(job,cycle),cycle).wage,sourceId:`salary-month:${job.id}:${cycle.ruleMonth}`};
+    }).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)||String(a.jobId).localeCompare(String(b.jobId)));
     if (!forecasts.length) return null;
     const date = forecasts[0].date, entries = forecasts.filter(item=>item.date===date);
     return { date, amount:entries.reduce((sum,item)=>sum+Number(item.amount||0),0), name:entries.map(item=>item.name).join("・"), entries };
+  }
+  function paymentSchedule(month) {
+    const [year,value]=month.split("-").map(Number),cycles=[];
+    salaryState.jobs.filter(job=>job.status!=="retired"&&Number(job.payday)>0&&Number(job.closingDay)>0).forEach(job=>{
+      for(let offset=-1;offset<=0;offset++){const date=new Date(year,value-1+offset,1,12),cycleMonth=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`,cycle=payCycle(job,cycleMonth);if(cycle.payment.startsWith(month))cycles.push({id:job.id,name:job.name,date:cycle.payment,start:cycle.start,end:cycle.end});}
+    });
+    return cycles.sort((a,b)=>a.date.localeCompare(b.date)||String(a.id).localeCompare(String(b.id)));
   }
   function recalculateAllSalaryIncome() {
     const finance = window.ExpenceFinanceStore;
@@ -506,6 +508,7 @@
   window.ExpenceSalaryStore = {
     snapshot: () => structuredClone(salaryState),
     nextPayForecast,
+    paymentSchedule,
     recalculateAllSalaryIncome,
     restore: value => { salaryState=normalizeState(value); save(true); recalculateAllSalaryIncome(); render(); },
     reset: () => { salaryState=emptyState(); save(true); recalculateAllSalaryIncome(); render(); }
