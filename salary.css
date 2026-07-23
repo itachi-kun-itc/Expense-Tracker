@@ -78,6 +78,25 @@
 .salary-rate-dialog{width:min(600px,calc(100% - 24px))}.salary-rate-dialog form{gap:12px;padding:18px}.salary-rate-dialog [data-rate-dialog-body]{max-height:min(68vh,620px);overflow:auto}.salary-rate-dialog .salary-rate-settings{grid-column:auto;border:0;background:transparent;padding:0}.salary-rate-dialog .salary-rate-settings .rule-list{grid-template-columns:1fr}
 @media(max-width:430px){.salary-rate-dialog form{padding:15px}.salary-rate-dialog .salary-rate-settings .rule-row{grid-template-columns:minmax(0,1fr) 86px 22px}}
 
+/* Keep each hourly-rate rule visually independent on phones */
+.salary-rate-dialog .salary-rate-settings .rule-row{overflow:hidden;background:#fff}
+.salary-rate-dialog .salary-rate-settings .rule-time-range,.salary-rate-dialog .salary-rate-settings .rule-time-range label{min-width:0;max-width:100%}
+.salary-rate-dialog .salary-rate-settings .rule-time-range input{display:block;width:100%;min-width:0;max-width:100%}
+@media(max-width:520px){
+  .salary-rate-dialog{width:min(430px,calc(100% - 28px))}
+  .salary-rate-dialog form{padding:20px 16px}
+  .salary-rate-dialog [data-rate-dialog-body]{padding-right:1px}
+  .salary-rate-dialog .salary-rate-settings .rule-list{gap:10px}
+  .salary-rate-dialog .salary-rate-settings .rule-row{grid-template-columns:minmax(0,1fr) 28px;gap:9px;padding:12px;border-radius:12px}
+  .salary-rate-dialog .salary-rate-settings .rule-name{grid-column:1;grid-row:1;padding:0}
+  .salary-rate-dialog .salary-rate-settings .rule-row>.row-delete{grid-column:2;grid-row:1;align-self:center;width:28px;height:42px}
+  .salary-rate-dialog .salary-rate-settings .rule-rate{grid-column:1/-1;grid-row:2;width:min(190px,100%)}
+  .salary-rate-dialog .salary-rate-settings .rule-time-range{grid-column:1/-1;grid-row:3;grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr);gap:6px;width:100%}
+  .salary-rate-dialog .salary-rate-settings .rule-name>span,.salary-rate-dialog .salary-rate-settings .rule-rate>span{display:block;margin-bottom:4px;font-size:8px}
+  .salary-rate-dialog .salary-rate-settings .rule-name input,.salary-rate-dialog .salary-rate-settings .rule-rate input,.salary-rate-dialog .salary-rate-settings .rule-time-range input{height:42px;padding:8px 10px;font-size:15px}
+  .salary-rate-dialog .salary-rate-settings .rule-time-range i{height:42px}
+}
+
 /* De-emphasized workplace selector */
 .salary-workplace-bar{gap:6px;margin-bottom:8px;padding:8px 10px;border-radius:10px;box-shadow:none}.salary-job-select{grid-template-columns:auto minmax(130px,210px);gap:7px;font-size:8px}.salary-job-select select{height:34px;padding-left:9px;font-size:11px}.salary-workplace-primary{gap:5px}.salary-workplace-primary .job-actions{gap:2px;padding-bottom:0}.salary-workplace-primary .job-actions button{min-height:30px;padding:5px 7px;font-size:9px}.salary-workplace-bar>.employment-switch{padding:2px}.salary-workplace-bar>.employment-switch button{min-height:28px;padding:5px 7px;font-size:9px}
 @media(max-width:760px){.salary-workplace-bar{padding:8px 9px}.salary-workplace-bar .salary-job-select{grid-template-columns:auto minmax(0,1fr);gap:6px}.salary-workplace-bar .salary-job-select select{height:36px;font-size:13px}.salary-workplace-primary .job-actions{padding-top:3px}.salary-workplace-bar>.employment-switch{margin-top:3px}}

@@ -45,6 +45,7 @@ function normalizeState(value) {
   result.recurring = Array.isArray(result.recurring) ? result.recurring : [];
   result.cardHistory = Array.isArray(result.cardHistory) ? result.cardHistory : [];
   result.cardRecurring = Array.isArray(result.cardRecurring) ? result.cardRecurring : [];
+  if(result.recurring.length){result.recurring.forEach(item=>{const id=`legacy-fixed-${item.id}`;if(result.cardRecurring.some(entry=>String(entry.id)===id))return;result.cardRecurring.push({id,startMonth:result.month||currentMonth,day:Math.min(31,Math.max(1,Number(item.day)||1)),cardName:String(item.name||"定額引き落とし"),amount:Math.max(0,Number(item.amount)||0),memo:"定額引き落とし",active:true,skippedMonths:[]});});result.recurring=[];}
   result.budgetsByMonth = result.budgetsByMonth && typeof result.budgetsByMonth === "object" ? result.budgetsByMonth : {};
   result.carryoversByMonth = result.carryoversByMonth && typeof result.carryoversByMonth === "object" ? result.carryoversByMonth : {};
   result.carryoverModes = result.carryoverModes && typeof result.carryoverModes === "object" ? result.carryoverModes : {};
@@ -98,7 +99,7 @@ function nextSalaryDates() {
 function toast(message="保存しました") { const element=document.querySelector("#toast"); element.textContent=message;element.classList.add("show");setTimeout(()=>element.classList.remove("show"),1800); }
 function shiftMonth(offset) { const [year,month]=state.month.split("-").map(Number), date=new Date(year,month-1+offset,1);state.month=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`;state.assets=carryoverForMonth();monthBudgets();save();render(); }
 
-function render() { if(refreshAutomaticCarryovers())save();prepareCardHistory();header();dashboard();transactions();renderCardHistory();renderRecurring();renderExpenseBreakdown();window.dispatchEvent(new Event("expence-finance-render")); }
+function render() { if(refreshAutomaticCarryovers())save();prepareCardHistory();header();dashboard();transactions();renderCardHistory();renderExpenseBreakdown();window.dispatchEvent(new Event("expence-finance-render")); }
 function header() {
   const [year,month]=state.month.split("-"); monthPicker.value=state.month; todayLabel.textContent=`${year}年 ${+month}月のマネーレポート`;
   document.querySelectorAll("[data-finance-month]").forEach(input=>input.value=state.month);
@@ -128,10 +129,6 @@ function transactions() {
 function renderExpenseBreakdown() {
   const expenses=items().filter(item=>item.type==="expense"),total=expenses.reduce((sum,item)=>sum+Number(item.amount||0),0),values=Object.keys(cats).filter(key=>key!=="salary").map(key=>({key,value:expenses.filter(item=>item.category===key).reduce((sum,item)=>sum+Number(item.amount||0),0)})).filter(item=>item.value>0).sort((a,b)=>b.value-a.value);
   expenseBreakdown.innerHTML=values.length?`<div class="expense-total"><small>支出合計</small><b>${yen(total)}</b></div><div class="expense-ratio-list">${values.map(item=>{const category=cats[item.key],percent=Math.round(item.value/total*100);return `<div><span>${category.name}</span><div class="ratio-bar"><i style="width:${percent}%;background:${category.color}"></i></div><b>${percent}%</b><small>${yen(item.value)}</small></div>`}).join("")}</div>`:'<p class="salary-empty">この月の支出はありません</p>';
-}
-function renderRecurring() {
-  recurringCategory.innerHTML=Object.keys(cats).filter(key=>key!=="salary").map(key=>`<option value="${key}">${cats[key].name}</option>`).join("");
-  recurringList.innerHTML=state.recurring.length?state.recurring.map(item=>{const category=cats[item.category]||cats.fixed;return `<div class="recurring-row"><span class="category-icon" style="background:${category.bg};color:${category.color}">${category.icon}</span><div><b>${escapeHtml(item.name)}</b><small>毎月${item.day}日・${category.name}</small></div><strong>${yen(item.amount)}</strong><button type="button" data-delete-recurring="${item.id}" aria-label="定額支出を削除">×</button></div>`}).join(""):'<p class="salary-empty">定額支出はありません</p>';
 }
 function renderCardHistory() {
   const list=document.querySelector("#cardHistoryList"),monthInput=document.querySelector("[data-card-month]");if(!list)return;if(monthInput)monthInput.value=state.month;
@@ -171,18 +168,14 @@ document.addEventListener("click", event => {
   if(event.target.closest("[data-open-modal]"))openModal();if(event.target.closest("[data-close]"))transactionModal.close();
   if(event.target.closest("[data-open-card-modal]")){cardMemoForm.reset();cardDateInput.value="";cardMemoDialog.showModal();}
   if(event.target.closest("[data-card-close]"))cardMemoDialog.close();
-  if(event.target.closest("[data-recurring-open]")){recurringForm.reset();recurringCategory.value="fixed";recurringDialog.showModal();}
-  if(event.target.closest("[data-recurring-close]"))recurringDialog.close();
   const selectedFilter=event.target.closest("[data-filter]");if(selectedFilter){filter=selectedFilter.dataset.filter;document.querySelectorAll(".filter").forEach(button=>button.classList.toggle("active",button===selectedFilter));transactions();}
   const deletion=event.target.closest("[data-delete]");if(deletion&&confirm("この記録を削除しますか？")){state.transactions=state.transactions.filter(item=>item.id!==Number(deletion.dataset.delete));save();render();toast("記録を削除しました");}
-  const recurringDeletion=event.target.closest("[data-delete-recurring]");if(recurringDeletion&&confirm("この定額支出を削除しますか？")){state.recurring=state.recurring.filter(item=>item.id!==Number(recurringDeletion.dataset.deleteRecurring));save();render();toast("定額支出を削除しました");}
   const cardDeletion=event.target.closest("[data-delete-card-history]");if(cardDeletion){const id=Number(cardDeletion.dataset.deleteCardHistory),row=state.cardHistory.find(item=>item.id===id);if(row&&confirm("この月のカード履歴を削除しますか？")){state.cardHistory=state.cardHistory.filter(item=>item.id!==id);if(row.recurringId){const recurring=state.cardRecurring.find(item=>item.id===row.recurringId),month=String(row.date).slice(0,7);if(recurring){if(confirm("今後の毎月自動記録も停止しますか？"))recurring.active=false;else recurring.skippedMonths=[...new Set([...(recurring.skippedMonths||[]),month])];}}save();render();toast("カード履歴を削除しました");}}
   if(event.target.closest("[data-save-carryover]")){const input=document.querySelector("[data-carryover-input]");setCarryover(Number(input.value),state.month,"manual");toast("繰越金を手動設定しました");}
   if(event.target.closest("[data-use-auto-carryover]")){state.carryoverModes[state.month]="auto";delete state.carryoverUpdatedAt[state.month];delete state.carryoverUpdateKeys[state.month];delete state.carryoverUpdateLabels[state.month];updateAutomaticCarryover(state.month);save();render();toast("繰越金を自動更新に戻しました");}
 });
 document.querySelectorAll('input[name="type"]').forEach(radio=>radio.addEventListener("change",options));
 transactionForm.addEventListener("submit",event=>{event.preventDefault();const amount=Number(amountInput.value);if(!amount)return;state.transactions.push({id:Date.now(),date:dateInput.value,type:document.querySelector('input[name="type"]:checked').value,category:categoryInput.value,amount,memo:memoInput.value.trim()});save();event.target.reset();transactionModal.close();render();toast("記録を追加しました");});
-recurringForm.addEventListener("submit",event=>{event.preventDefault();const form=new FormData(event.target);state.recurring.push({id:Date.now(),name:String(form.get("name")||"").trim(),amount:Number(form.get("amount")),day:Number(form.get("day")),category:String(form.get("category")||"fixed")});save();recurringDialog.close();render();toast("定額支出を追加しました");});
 cardMemoForm.addEventListener("submit",event=>{event.preventDefault();const form=new FormData(event.target),date=String(form.get("date")||""),amount=Number(form.get("amount")),cardName=String(form.get("cardName")||"").trim(),memo=String(form.get("memo")||"").trim(),recurring=form.get("recurring")==="on";if(!date||!amount)return;if(recurring){state.cardRecurring.push({id:Date.now(),startMonth:date.slice(0,7),day:Number(date.slice(8,10)),cardName,amount,memo,active:true,skippedMonths:[]});}else state.cardHistory.push({id:Date.now(),date,cardName,amount,memo});state.month=date.slice(0,7);save();cardMemoDialog.close();render();toast(recurring?"毎月の自動記録を設定しました":"カード履歴を追加しました");});
 monthPicker.addEventListener("change",event=>{state.month=event.target.value;state.assets=carryoverForMonth();monthBudgets();save();render();});
 document.querySelector("[data-finance-month]").addEventListener("change",event=>{state.month=event.target.value;state.assets=carryoverForMonth();monthBudgets();save();render();});
