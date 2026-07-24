@@ -231,3 +231,43 @@ body{overflow-x:hidden}
 #salaryRateDialog .salary-rate-settings .rule-rate input{width:88px;flex:0 1 88px}
 #salaryRateDialog .salary-rate-settings .rule-time-range{grid-template-columns:minmax(0,140px) 26px minmax(0,140px);max-width:314px}
 @media(max-width:430px){.salary-compact-shift .salary-shift-line{width:min(100%,300px);max-width:300px!important;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr)!important}.salary-break-lines>div{width:min(100%,320px);max-width:320px;grid-template-columns:auto minmax(0,1fr) 22px minmax(0,1fr)!important}.salary-break-lines [data-delete-break]{grid-column:1/-1;justify-self:end}#salaryRateDialog .salary-rate-settings .rule-time-range{grid-template-columns:minmax(0,1fr);max-width:150px}#salaryRateDialog .salary-rate-settings .rule-time-range>i{display:none}}
+
+/* Keep time controls compact and reserve a separator lane that inputs cannot enter. */
+.salary-compact-shift .salary-shift-line{
+  grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr)!important;
+  column-gap:8px!important;
+}
+.salary-break-lines>div{
+  grid-template-columns:auto minmax(0,1fr) 28px minmax(0,1fr) 48px!important;
+  column-gap:7px!important;
+}
+.salary-compact-shift input[type="time"],
+.salary-break-lines input[type="time"],
+#salaryRateDialog .salary-rate-settings .rule-time-range input[type="time"]{
+  display:block;
+  height:32px!important;
+  min-height:32px!important;
+  padding-block:3px!important;
+  line-height:1!important;
+  overflow:hidden!important;
+}
+.salary-shift-line>i,.salary-break-lines i,#salaryRateDialog .rule-time-range>i{
+  position:relative;
+  z-index:1;
+  width:28px!important;
+  min-width:28px!important;
+  max-width:28px!important;
+  height:32px!important;
+  overflow:hidden;
+  white-space:nowrap;
+}
+#salaryRateDialog .salary-rate-settings .rule-time-range{
+  grid-template-columns:minmax(0,140px) 28px minmax(0,140px);
+  column-gap:8px;
+}
+@media(max-width:430px){
+  .salary-compact-shift .salary-shift-line{grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr)!important;column-gap:7px!important}
+  .salary-break-lines>div{grid-template-columns:auto minmax(0,1fr) 28px minmax(0,1fr)!important;column-gap:6px!important}
+  #salaryRateDialog .salary-rate-settings .rule-time-range{grid-template-columns:minmax(0,1fr);max-width:150px}
+  #salaryRateDialog .salary-rate-settings .rule-time-range>i{display:none}
+}

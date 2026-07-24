@@ -2,6 +2,8 @@
   const FINANCE_KEY = "expence-tracker-forecast-v1";
   const SHEETS_KEY = "expence-tracker-sheets-v1";
   const yen = value => `${Math.round(Number(value) || 0).toLocaleString("ja-JP")}円`;
+  const parseMoney = value => window.ExpenceMoney?.parse?.(value) ?? (Number(String(value??"").replace(/,/g,""))||0);
+  const moneyInput = value => value===""||value==null ? "" : (window.ExpenceMoney?.formatInput?.(value) ?? Math.round(Number(value)||0).toLocaleString("ja-JP"));
   const today = new Date().toLocaleDateString("sv-SE");
 
   let forecast = load(FINANCE_KEY, { currentAssets: 0, nextIncome: 0, scheduledBills: 0 });
@@ -65,7 +67,7 @@
 
   const forecastDialog = document.createElement("dialog");
   forecastDialog.id = "forecastDialog";
-  forecastDialog.innerHTML = `<form method="dialog" id="forecastForm"><div class="modal-head"><div><p class="eyebrow">ASSET FORECAST</p><h2>資産予測の設定</h2></div><button type="button" class="close-btn" data-forecast-close>← 戻る</button></div><label>今月の繰越金<input name="currentAssets" type="number"></label><label>次に入る収入<input name="nextIncome" type="number" min="0"></label><label>今後の引き落とし<input name="scheduledBills" type="number" min="0"></label><button class="primary-btn wide">保存する</button></form>`;
+  forecastDialog.innerHTML = `<form method="dialog" id="forecastForm"><div class="modal-head"><div><p class="eyebrow">ASSET FORECAST</p><h2>資産予測の設定</h2></div><button type="button" class="close-btn" data-forecast-close>← 戻る</button></div><label>今月の繰越金<input name="currentAssets" type="text" inputmode="numeric" data-money-input></label><label>次に入る収入<input name="nextIncome" type="text" inputmode="numeric" data-money-input></label><label>今後の引き落とし<input name="scheduledBills" type="text" inputmode="numeric" data-money-input></label><button class="primary-btn wide">保存する</button></form>`;
   document.body.appendChild(forecastDialog);
 
   const nav = document.createElement("button");
@@ -317,9 +319,9 @@
     if (e.target.closest('[data-view="sheets"]')) { document.querySelector("#pageTitle").textContent = "マイシート"; activeSheetId = null; renderSheets(); }
     if (e.target.closest("[data-forecast-settings]")) {
       Object.entries(forecast).forEach(([key, value]) => forecastDialog.elements?.[key] ? forecastDialog.elements[key].value = value : null);
-      forecastDialog.querySelector('[name="currentAssets"]').value = window.ExpenceFinanceStore?.carryover?.() ?? forecast.currentAssets;
-      forecastDialog.querySelector('[name="nextIncome"]').value = forecast.nextIncome;
-      forecastDialog.querySelector('[name="scheduledBills"]').value = forecast.scheduledBills;
+      forecastDialog.querySelector('[name="currentAssets"]').value = moneyInput(window.ExpenceFinanceStore?.carryover?.() ?? forecast.currentAssets);
+      forecastDialog.querySelector('[name="nextIncome"]').value = moneyInput(forecast.nextIncome);
+      forecastDialog.querySelector('[name="scheduledBills"]').value = moneyInput(forecast.scheduledBills);
       forecastDialog.showModal();
     }
     if (e.target.closest("[data-forecast-close]")) forecastDialog.close();
@@ -388,8 +390,8 @@
   });
   document.querySelector("#forecastForm").addEventListener("submit", e => {
     e.preventDefault(); const fd = new FormData(e.target);
-    const currentAssets = Number(fd.get("currentAssets"));
-    forecast = { ...forecast, currentAssets, nextIncome:Number(fd.get("nextIncome")), scheduledBills:Number(fd.get("scheduledBills")), carryoverMigrated:true };
+    const currentAssets = parseMoney(fd.get("currentAssets"));
+    forecast = { ...forecast, currentAssets, nextIncome:parseMoney(fd.get("nextIncome")), scheduledBills:parseMoney(fd.get("scheduledBills")), carryoverMigrated:true };
     window.ExpenceFinanceStore?.setCarryover?.(currentAssets, undefined, "manual");
     save(FINANCE_KEY, forecast); forecastDialog.close(); renderFinance();
   });
