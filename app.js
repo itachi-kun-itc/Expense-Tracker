@@ -112,7 +112,7 @@ function shiftMonth(offset) { const [year,month]=state.month.split("-").map(Numb
 
 function render() { if(refreshAutomaticCarryovers())save();prepareCardHistory();header();dashboard();transactions();renderCardHistory();renderExpenseBreakdown();window.dispatchEvent(new Event("expence-finance-render")); }
 function header() {
-  const [year,month]=state.month.split("-"),lastDay=new Date(Number(year),Number(month),0).getDate(),monthLabel=`${year}年${+month}月度`,periodLabel=`${+month}/1〜${+month}/${lastDay}`; monthPicker.value=state.month; todayLabel.textContent=`${year}年 ${+month}月のマネーレポート`;
+  const [year,month]=state.month.split("-"),lastDay=new Date(Number(year),Number(month),0).getDate(),monthLabel=`${year}年${+month}月度`,salaryPeriod=window.ExpenceSalaryStore?.periodForMonth?.(state.month),shortPeriodDate=value=>`${Number(String(value).slice(5,7))}/${Number(String(value).slice(8,10))}`,periodLabel=salaryPeriod?.start&&salaryPeriod?.end?`${shortPeriodDate(salaryPeriod.start)}-${shortPeriodDate(salaryPeriod.end)}`:`${+month}/1-${+month}/${lastDay}`; monthPicker.value=state.month; todayLabel.textContent=`${year}年 ${+month}月のマネーレポート`;
   document.querySelectorAll("[data-finance-month],[data-card-month]").forEach(input=>input.value=state.month);
   document.querySelectorAll("[data-finance-month-label],[data-card-month-label]").forEach(label=>label.textContent=monthLabel);
   document.querySelectorAll("[data-finance-month-period],[data-card-month-period]").forEach(label=>label.textContent=periodLabel);

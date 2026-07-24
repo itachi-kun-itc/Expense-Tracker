@@ -1,6 +1,6 @@
-import { createSalt, createToken, currentUser, hashPassword, hashToken, json, normalizeUsername, safeEqual, sessionCookie, validUsername } from "../_lib/auth.js";
+import { createSalt, createToken, currentUser, hashPassword, hashToken, isAdminUser, json, normalizeUsername, safeEqual, sessionCookie, validUsername } from "../_lib/auth.js";
 
-const publicUser = user => user ? { id:user.id, username:user.username, role:normalizeUsername(user.username).toLocaleLowerCase("en-US") === "haruka" ? "admin" : "user" } : null;
+const publicUser = user => user ? { id:user.id, username:user.username, role:isAdminUser(user) ? "admin" : "user" } : null;
 
 async function createSession(userId, request, env) {
   const token = createToken();

@@ -6,6 +6,6 @@
   "scripts": {
     "dev": "node server.cjs",
     "start": "node server.cjs",
-    "check": "node --check app.js && node --check workspace.js && node --check salary.js && node --check academic.js && node --check account.js && node --check scripts/create-admin.cjs && node --check functions/_lib/auth.js && node --check functions/api/auth.js && node --check functions/api/data.js && node --check functions/api/files.js && node --check functions/api/files/[id].js"
+    "check": "node --check app.js && node --check workspace.js && node --check salary.js && node --check academic.js && node --check account.js && node --check scripts/create-admin.cjs && node --check functions/_lib/auth.js && node --check functions/api/auth.js && node --check functions/api/admin/users.js && node --check functions/api/data.js && node --check functions/api/files.js && node --check functions/api/files/[id].js"
   }
 }

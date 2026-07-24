@@ -219,10 +219,10 @@ body{overflow-x:hidden}
 @media(max-width:430px){dialog .form-grid{grid-template-columns:minmax(0,1fr)}dialog form{padding-inline:16px}.salary-break-lines>div{grid-template-columns:auto minmax(0,1fr) 10px minmax(0,1fr)}.salary-break-lines [data-delete-break]{grid-column:1/-1;justify-self:end}}
 
 /* Compact time and hourly-rate inputs without colliding with separators. */
-.salary-compact-shift .salary-shift-line{box-sizing:border-box;width:min(100%,320px);max-width:320px!important;grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr)!important;gap:4px!important}
+.salary-compact-shift .salary-shift-line{box-sizing:border-box;justify-self:center;width:min(100%,320px);max-width:320px!important;grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr)!important;gap:4px!important}
 .salary-compact-shift .salary-shift-line>input,.salary-break-lines input{box-sizing:border-box;width:100%!important;min-width:0!important;max-width:100%!important;overflow:hidden}
 .salary-shift-line>i,.salary-break-lines i,#salaryRateDialog .rule-time-range>i{display:grid;place-items:center;width:100%;min-width:0;color:var(--muted);pointer-events:none}
-.salary-break-lines>div{box-sizing:border-box;width:min(100%,400px);max-width:400px;grid-template-columns:auto minmax(0,1fr) 26px minmax(0,1fr) 48px!important;gap:4px!important}
+.salary-break-lines>div{box-sizing:border-box;width:min(100%,400px);max-width:400px;margin-inline:auto;grid-template-columns:auto minmax(0,1fr) 26px minmax(0,1fr) 48px!important;gap:4px!important}
 #salaryRateDialog .salary-rate-settings .base-rate-picker{grid-template-columns:52px minmax(0,150px);justify-content:start}
 #salaryRateDialog .salary-rate-settings .base-rate-picker>div{box-sizing:border-box;width:150px;max-width:150px}
 #salaryRateDialog .salary-rate-settings .base-rate-picker input{width:88px;flex:0 1 88px}

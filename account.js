@@ -36,7 +36,12 @@
   const logoutButton = dialog.querySelector("[data-logout]");
   const deleteButton = dialog.querySelector("[data-delete-account]");
   const sessionError = dialog.querySelector("[data-session-error]");
-  const previewButton = document.querySelector("[data-login-preview-open]");
+  const adminMenuButton = document.querySelector("[data-admin-menu-open]");
+  const settingsMain = document.querySelector("[data-settings-main]");
+  const adminPage = document.querySelector("[data-admin-page]");
+  const adminUsers = adminPage.querySelector("[data-admin-users]");
+  const adminUserCount = adminPage.querySelector("[data-admin-user-count]");
+  const adminError = adminPage.querySelector("[data-admin-error]");
 
   function isAdmin() {
     return user?.role === "admin";
@@ -44,6 +49,73 @@
 
   function setLoginPreview(active) {
     document.body.dataset.loginPreview = active && isAdmin() ? "true" : "false";
+  }
+
+  function accountDate(timestamp) {
+    if (!timestamp) return "登録日不明";
+    return new Date(timestamp * 1000).toLocaleDateString("ja-JP", { year:"numeric", month:"short", day:"numeric" });
+  }
+
+  function renderAdminUsers(accounts) {
+    adminUsers.replaceChildren();
+    adminUserCount.textContent = `${accounts.length}件`;
+    for (const account of accounts) {
+      const row = document.createElement("div");
+      row.className = "admin-user-row";
+      const avatar = document.createElement("span");
+      avatar.className = "admin-user-avatar";
+      avatar.textContent = String(account.username || "?").slice(0, 1).toUpperCase();
+      const identity = document.createElement("span");
+      identity.className = "admin-user-identity";
+      const name = document.createElement("b");
+      name.textContent = account.username || "名称未設定";
+      const detail = document.createElement("small");
+      const sessions = Number(account.activeSessions) || 0;
+      detail.textContent = `${accountDate(account.createdAt)}・${sessions ? `ログイン中 ${sessions}件` : "ログイン中の端末なし"}`;
+      identity.append(name, detail);
+      const role = document.createElement("em");
+      role.className = `admin-role ${account.role === "admin" ? "is-admin" : ""}`;
+      role.textContent = account.role === "admin" ? "管理者" : "一般";
+      row.append(avatar, identity, role);
+      adminUsers.appendChild(row);
+    }
+    if (!accounts.length) {
+      const empty = document.createElement("p");
+      empty.className = "admin-loading";
+      empty.textContent = "登録アカウントはありません";
+      adminUsers.appendChild(empty);
+    }
+  }
+
+  async function loadAdminUsers() {
+    if (!isAdmin()) return;
+    adminError.textContent = "";
+    adminUserCount.textContent = "";
+    adminUsers.innerHTML = '<p class="admin-loading">読み込み中…</p>';
+    const currentAccount = [{ id:user.id, username:user.username, role:"admin", createdAt:null, activeSessions:1 }];
+    if (user.id === "local-device") {
+      renderAdminUsers(currentAccount);
+      return;
+    }
+    try {
+      const result = await request("/api/admin/users");
+      if (isAdmin()) renderAdminUsers(Array.isArray(result.users) ? result.users : []);
+    } catch (error) {
+      renderAdminUsers(currentAccount);
+      adminError.textContent = "一覧を取得できないため、現在のアカウントのみ表示しています。";
+    }
+  }
+
+  function openAdminMenu() {
+    if (!isAdmin()) return;
+    settingsMain.hidden = true;
+    adminPage.hidden = false;
+    loadAdminUsers();
+  }
+
+  function closeAdminMenu() {
+    adminPage.hidden = true;
+    settingsMain.hidden = false;
   }
 
   function snapshot() {
@@ -81,8 +153,9 @@
     fields.hidden = Boolean(user);
     session.hidden = !user;
     document.body.dataset.authenticated = user ? "true" : "false";
-    if (previewButton) previewButton.hidden = !isAdmin();
+    if (adminMenuButton) adminMenuButton.hidden = !isAdmin();
     if (!isAdmin()) setLoginPreview(false);
+    if (!isAdmin()) closeAdminMenu();
     if (user) {
       dialog.querySelector("[data-session-name]").textContent = user.username;
       dialog.querySelector("[data-session-role]").textContent = user.role === "admin" ? "管理者" : "";
@@ -184,7 +257,10 @@
     if (event.target.closest("[data-account-close]")) dialog.close();
     if (event.target.closest("[data-auth-gate-register]")) openAuthAction("register");
     if (event.target.closest("[data-auth-gate-login]")) openAuthAction("login");
-    if (event.target.closest("[data-login-preview-open]") && isAdmin()) setLoginPreview(true);
+    if (event.target.closest("[data-admin-menu-open]")) openAdminMenu();
+    if (event.target.closest("[data-admin-close]")) closeAdminMenu();
+    if (event.target.closest("[data-admin-users-refresh]") && isAdmin()) loadAdminUsers();
+    if (event.target.closest("[data-admin-login-preview]") && isAdmin()) setLoginPreview(true);
     if (event.target.closest("[data-login-preview-back]") && isAdmin()) setLoginPreview(false);
   });
 

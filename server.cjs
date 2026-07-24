@@ -23,10 +23,11 @@ function validUsername(value) { return value.length>=3&&value.length<=32&&/^[\p{
 function passwordHash(password,salt,iterations=100000) { return crypto.pbkdf2Sync(password,salt,iterations,32,"sha256").toString("hex"); }
 function cookie(request,name) { const match=(request.headers.cookie||"").match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));return match?decodeURIComponent(match[1]):""; }
 function currentUser(request,db) { const token=cookie(request,"et_session"),userId=sessions.get(token);return userId?db.users.find(user=>user.id===userId)||null:null; }
+function isAdminUser(user) { return user?.role==="admin"||normalizeUsername(user?.username).toLocaleLowerCase("en-US")==="haruka"; }
 
 async function authApi(request,response) {
   const db=loadDb();
-  if(request.method==="GET"){const user=currentUser(request,db)||localDeviceUser;json(response,200,{user:{id:user.id,username:user.username,role:user.role||"user"}});return;}
+  if(request.method==="GET"){const user=currentUser(request,db)||localDeviceUser;json(response,200,{user:{id:user.id,username:user.username,role:isAdminUser(user)?"admin":"user"}});return;}
   if(request.method!=="POST"){json(response,405,{error:"Method Not Allowed"});return;}
   let body;try{body=await readBody(request);}catch{json(response,400,{error:"入力内容を確認してください"});return;}
   if(body.action==="logout"){const token=cookie(request,"et_session");sessions.delete(token);json(response,200,{ok:true},{"Set-Cookie":"et_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"});return;}
@@ -43,12 +44,20 @@ async function authApi(request,response) {
   let user;
   if(body.action==="register"){
     if(db.users.some(item=>item.key===key)){json(response,409,{error:"そのアカウント名は既に使われています"});return;}
-    const salt=crypto.randomBytes(16).toString("base64"),iterations=100000;user={id:crypto.randomUUID(),username,key,salt,iterations,passwordHash:passwordHash(password,salt,iterations)};db.users.push(user);saveDb(db);
+    const salt=crypto.randomBytes(16).toString("base64"),iterations=100000;user={id:crypto.randomUUID(),username,key,salt,iterations,passwordHash:passwordHash(password,salt,iterations),createdAt:Math.floor(Date.now()/1000)};db.users.push(user);saveDb(db);
   }else if(body.action==="login"){
     user=db.users.find(item=>item.key===key);const candidate=user?passwordHash(password,user.salt,Number(user.iterations)||210000):"";
     if(!user||candidate.length!==user.passwordHash.length||!crypto.timingSafeEqual(Buffer.from(candidate),Buffer.from(user.passwordHash))){json(response,401,{error:"アカウント名またはパスワードが違います"});return;}
   }else{json(response,400,{error:"未対応の操作です"});return;}
   const token=crypto.randomBytes(32).toString("base64url");sessions.set(token,user.id);json(response,body.action==="register"?201:200,{user:{id:user.id,username:user.username,role:key==="haruka"?"admin":"user"}},{"Set-Cookie":`et_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000`});
+}
+async function adminUsersApi(request,response) {
+  if(request.method!=="GET"){json(response,405,{error:"Method Not Allowed"});return;}
+  const db=loadDb(),user=currentUser(request,db)||localDeviceUser;
+  if(!isAdminUser(user)){json(response,403,{error:"管理者のみ利用できます"});return;}
+  const counts=new Map();for(const userId of sessions.values())counts.set(userId,(counts.get(userId)||0)+1);
+  const users=[localDeviceUser,...db.users].map(account=>({id:account.id,username:account.username,role:isAdminUser(account)?"admin":"user",createdAt:Number(account.createdAt)||null,lastLoginAt:null,activeSessions:account.id==="local-device"?1:(counts.get(account.id)||0)}));
+  json(response,200,{users});
 }
 async function dataApi(request,response) {
   const db=loadDb(),user=currentUser(request,db)||localDeviceUser;
@@ -60,6 +69,7 @@ async function dataApi(request,response) {
 http.createServer(async (request,response)=>{
   const requestPath=decodeURIComponent(request.url.split("?")[0]);
   if(requestPath==="/api/auth"){await authApi(request,response);return;}
+  if(requestPath==="/api/admin/users"){await adminUsersApi(request,response);return;}
   if(requestPath==="/api/data"){await dataApi(request,response);return;}
   if(requestPath.startsWith("/api/files")){json(response,501,{error:"給与明細PDFはCloudflare版で利用できます"});return;}
   const relativePath=requestPath==="/"?"index.html":requestPath.replace(/^\/+/,""),filePath=path.resolve(root,relativePath);

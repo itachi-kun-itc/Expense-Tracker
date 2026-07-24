@@ -8,6 +8,10 @@ export function validUsername(value) {
   return value.length >= 3 && value.length <= 32 && /^[\p{L}\p{N}_.-]+$/u.test(value);
 }
 
+export function isAdminUser(user) {
+  return normalizeUsername(user?.username).toLocaleLowerCase("en-US") === "haruka";
+}
+
 function bytesToHex(bytes) {
   return [...new Uint8Array(bytes)].map(value => value.toString(16).padStart(2, "0")).join("");
 }

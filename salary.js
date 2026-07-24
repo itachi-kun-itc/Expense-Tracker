@@ -143,14 +143,17 @@
   }
   function payCycle(job, cycleMonth = salaryState.month) {
     const [year, month] = cycleMonth.split("-").map(Number);
-    const configured = Number(job.payday) > 0 && Number(job.closingDay) > 0;
-    const payday = Number(job.payday) || 25, closingDay = Number(job.closingDay) || 20;
-    const end = dateInMonth(year, month - 1, closingDay);
-    const previousEnd = dateInMonth(year, month - 2, closingDay);
+    const hasClosingDay = Number(job?.closingDay) > 0;
+    const hasPayday = Number(job?.payday) > 0;
+    const configured = hasPayday && hasClosingDay;
+    const payday = Number(job?.payday) || 25;
+    const closingDay = Number(job?.closingDay) || new Date(year, month, 0).getDate();
+    const end = hasClosingDay ? dateInMonth(year, month - 1, closingDay) : new Date(year, month, 0, 12);
+    const previousEnd = hasClosingDay ? dateInMonth(year, month - 2, closingDay) : new Date(year, month - 1, 0, 12);
     const start = new Date(previousEnd); start.setDate(start.getDate() + 1);
-    const paymentMonthOffset = payday > closingDay ? month - 1 : month;
+    const paymentMonthOffset = hasClosingDay && payday <= closingDay ? month : month - 1;
     const payment = dateInMonth(year, paymentMonthOffset, payday);
-    return { start:isoDate(start), end:isoDate(end), payment:isoDate(payment), ruleMonth:cycleMonth, configured };
+    return { start:isoDate(start), end:isoDate(end), payment:isoDate(payment), ruleMonth:cycleMonth, configured, hasClosingDay };
   }
   function cycleDates(cycle) {
     const dates = [], cursor = new Date(`${cycle.start}T12:00:00`), end = new Date(`${cycle.end}T12:00:00`);
@@ -235,6 +238,11 @@
   }
   const dateLabel = date => new Intl.DateTimeFormat("ja-JP", { year:"numeric", month:"numeric", day:"numeric" }).format(new Date(`${date}T12:00:00`));
   const shortDateLabel = date => { const value=new Date(`${date}T12:00:00`);return `${value.getMonth()+1}/${value.getDate()}`; };
+  const cyclePeriodLabel = cycle => `${shortDateLabel(cycle.start)}-${shortDateLabel(cycle.end)}`;
+  function salaryMonthMarkup(job = activeJob()) {
+    const [year, month] = salaryState.month.split("-").map(Number), cycle = payCycle(job);
+    return `<div class="salary-month-row"><button type="button" data-salary-month-step="-1" aria-label="前月">‹</button><label><strong>${year}年${month}月度</strong><small>${cyclePeriodLabel(cycle)}</small><input type="month" data-salary-month value="${salaryState.month}" aria-label="給与の年月"></label><button type="button" data-salary-month-step="1" aria-label="翌月">›</button></div>`;
+  }
 
   const view = document.createElement("section");
   view.id = "salaryView";
@@ -281,7 +289,7 @@
   function rateSettingsMarkup(job = activeJob()) {
     const rules = rulesFor(job, salaryState.month, true), baseRule = baseRuleFor(job, salaryState.month, true);
     const cycle = payCycle(job), [year,month] = salaryState.month.split("-").map(Number);
-    return `<div class="salary-rate-settings"><div class="salary-rate-settings-head"><div><b>${year}年${month}月度</b>${cycle.configured ? `<small>${shortDateLabel(cycle.start)}〜${shortDateLabel(cycle.end)}</small>` : ""}</div><button type="button" class="secondary-btn" data-add-rule>＋ 追加</button></div><label class="base-rate-picker"><span>基本</span><div><input type="number" min="0" step="1" data-base-hourly-rate value="${baseRule.rate}" placeholder="1200"><em>円/時</em></div></label><div class="rule-list">${rules.slice(1).length ? rules.slice(1).map((rule,index)=>ruleRow(rule,index)).join("") : '<p class="salary-empty">時間帯別の時給はありません</p>'}</div></div>`;
+    return `<div class="salary-rate-settings"><div class="salary-rate-settings-head"><div><b>${year}年${month}月度</b><small>${cyclePeriodLabel(cycle)}</small></div><button type="button" class="secondary-btn" data-add-rule>＋ 追加</button></div><label class="base-rate-picker"><span>基本</span><div><input type="number" min="0" step="1" data-base-hourly-rate value="${baseRule.rate}" placeholder="1200"><em>円/時</em></div></label><div class="rule-list">${rules.slice(1).length ? rules.slice(1).map((rule,index)=>ruleRow(rule,index)).join("") : '<p class="salary-empty">時間帯別の時給はありません</p>'}</div></div>`;
   }
   function renderRateDialog() {
     rateDialog.querySelector("[data-rate-dialog-body]").innerHTML = rateSettingsMarkup();
@@ -302,8 +310,7 @@
     const incomes = incomeHistory();
     const currentRules = rulesFor(currentJob, salaryState.month, true), currentBaseRule = baseRuleFor(currentJob, salaryState.month, true);
     const rateItems = [{ name:"基本", period:"全時間帯", amount:currentBaseRule.rate === "" ? "未設定" : money(currentBaseRule.rate) }, ...currentRules.slice(1).filter(rule => rule.rate !== "" && rule.rate != null).map((rule,index) => ({ name:rule.name || ruleExampleName(index), period:`${rule.start || "--:--"}〜${rule.end || "--:--"}`, amount:money(rule.rate) }))];
-    const [salaryYear,salaryMonth] = salaryState.month.split("-").map(Number);
-    view.innerHTML = `<div class="salary-month-row"><button type="button" data-salary-month-step="-1" aria-label="前月">‹</button><label><strong>${salaryYear}年${salaryMonth}月度</strong>${cycle.configured?`<small>${shortDateLabel(cycle.start)}〜${shortDateLabel(cycle.end)}</small>`:""}<input type="month" data-salary-month value="${salaryState.month}" aria-label="給与の年月"></label><button type="button" data-salary-month-step="1" aria-label="翌月">›</button></div>
+    view.innerHTML = `${salaryMonthMarkup(currentJob)}
       <article class="salary-current-total"><span>今月の給料</span><strong data-month-wage>${money(monthTotal.wage)}</strong>${cycle.configured ? `<small>${shortDateLabel(cycle.payment)}振込</small>` : "<small>締め日と振込日を設定してください</small>"}</article>
       <section class="panel salary-compact-section"><div class="salary-compact-title"><h2>${currentJob.payType === "hourly" ? "時給" : "1コマ単価"}</h2></div>${currentJob.payType === "hourly" ? `<div class="salary-rate-list">${rateItems.map(item=>`<div><span>【${escapeHtml(item.name === "基本" ? "基本給" : item.name)}】</span><strong>${escapeHtml(item.amount)}</strong><small>${escapeHtml(item.period)}</small></div>`).join("")}</div><button type="button" class="salary-add-link" data-open-rate-settings>＋追加する</button>` : `<label class="salary-session-compact"><input type="number" min="0" step="1" data-job-session-rate value="${currentJob.sessionRate}" placeholder="1500"><span>円／コマ</span></label>`}</section>
       <section class="panel salary-compact-section salary-shifts"><div class="salary-compact-title"><h2>シフト入力</h2><select data-job-pay-type aria-label="給与制度"><option value="hourly" ${currentJob.payType === "hourly" ? "selected" : ""}>時給制</option><option value="session" ${currentJob.payType === "session" ? "selected" : ""}>1コマ制</option></select></div><div class="shift-list salary-compact-shifts">${shifts.length ? shifts.map(shiftRow).join("") : '<p class="salary-empty">シフトはありません</p>'}</div><button type="button" class="salary-add-link" data-add-shift ${cycle.configured ? "" : "disabled"}>＋追加</button></section>
@@ -381,7 +388,7 @@
     return null;
   }
   function saveAndSync() { save(false,false); recalculateAllSalaryIncome(); }
-  function persistAndRender() { saveAndSync(); render(); }
+  function persistAndRender() { saveAndSync(); render(); window.ExpenceFinanceStore?.rerender?.(); }
   async function refreshPayslips() {
     try {
       const response = await fetch("/api/files", { credentials:"same-origin" });
@@ -527,6 +534,10 @@
   window.addEventListener("expence-finance-render", () => { if (view.classList.contains("active")) render(); });
   window.ExpenceSalaryStore = {
     snapshot: () => structuredClone(salaryState),
+    periodForMonth: (month = salaryState.month) => {
+      const job = activeJob(), cycle = payCycle(job, month);
+      return { start:cycle.start, end:cycle.end, jobId:job?.id || null, jobName:job?.name || "" };
+    },
     nextPayForecast,
     paymentSchedule,
     recalculateAllSalaryIncome,
