@@ -74,7 +74,7 @@
     if(event.target.dataset.commuterField){academic.commuter[event.target.dataset.commuterField]=event.target.tagName==="SELECT"||event.target.type==="number"?(event.target.value===""?"":Number(event.target.value)):event.target.value;save();renderCommuter();}
   });
   document.addEventListener("input",event=>{const subjectRow=event.target.closest("[data-subject-id]");if(subjectRow&&event.target.dataset.subjectField){const subject=academic.subjects.find(item=>item.id===Number(subjectRow.dataset.subjectId));subject[event.target.dataset.subjectField]=event.target.type==="number"?(event.target.value===""?"":Number(event.target.value)):event.target.value;save();}if(event.target.dataset.commuterField){academic.commuter[event.target.dataset.commuterField]=event.target.value===""?"":Number(event.target.value);save();}});
-  window.ExpenceAcademicStore={snapshot:()=>structuredClone(academic),restore:value=>{academic={...emptyState(),...(value||{})};save(true);render();},reset:()=>{academic=emptyState();save(true);render();}};
+  window.ExpenceAcademicStore={snapshot:()=>structuredClone(academic),restore:value=>{academic={...emptyState(),...(value||{})};save(true);render();},reset:()=>{academic=emptyState();preferredMode="finance";mode="finance";localStorage.removeItem(MODE_KEY);save(true);applyMode(true,false);render();}};
   document.addEventListener("expence-account-change",event=>{mode=event.detail?.user?preferredMode:"finance";applyMode(true,false);});
   render();applyMode(false,false);
 })();

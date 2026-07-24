@@ -36,6 +36,15 @@
   const logoutButton = dialog.querySelector("[data-logout]");
   const deleteButton = dialog.querySelector("[data-delete-account]");
   const sessionError = dialog.querySelector("[data-session-error]");
+  const previewButton = document.querySelector("[data-login-preview-open]");
+
+  function isLocalAdmin() {
+    return user?.id === "local-device" && user?.role === "admin";
+  }
+
+  function setLoginPreview(active) {
+    document.body.dataset.loginPreview = active && isLocalAdmin() ? "true" : "false";
+  }
 
   function snapshot() {
     return {
@@ -72,6 +81,8 @@
     fields.hidden = Boolean(user);
     session.hidden = !user;
     document.body.dataset.authenticated = user ? "true" : "false";
+    if (previewButton) previewButton.hidden = !isLocalAdmin();
+    if (!isLocalAdmin()) setLoginPreview(false);
     if (user) {
       dialog.querySelector("[data-session-name]").textContent = user.username;
       dialog.querySelector("[data-session-role]").textContent = user.role === "admin" ? "管理者" : "";
@@ -90,6 +101,17 @@
     errorBox.textContent = message;
     updateAccountUi();
     if (!dialog.open) dialog.showModal();
+  }
+
+  function openAuthAction(action) {
+    openAccount();
+    const preferred = dialog.querySelector(`[data-auth-action="${action}"]`);
+    const alternate = dialog.querySelector(`[data-auth-action="${action === "login" ? "register" : "login"}"]`);
+    preferred?.classList.add("primary-btn");
+    preferred?.classList.remove("secondary-btn");
+    alternate?.classList.add("secondary-btn");
+    alternate?.classList.remove("primary-btn");
+    dialog.querySelector('input[name="username"]')?.focus();
   }
 
   window.ExpenceAccount = {
@@ -153,11 +175,17 @@
     const remote = await request("/api/data");
     if (remote.data) restore(remote.data); else await push();
     setSyncState("同期済み");
+    setLoginPreview(false);
+    dialog.close();
   }
 
   document.addEventListener("click", event => {
     if (event.target.closest("[data-account-open]")) openAccount();
     if (event.target.closest("[data-account-close]")) dialog.close();
+    if (event.target.closest("[data-auth-gate-register]")) openAuthAction("register");
+    if (event.target.closest("[data-auth-gate-login]")) openAuthAction("login");
+    if (event.target.closest("[data-login-preview-open]") && isLocalAdmin()) setLoginPreview(true);
+    if (event.target.closest("[data-login-preview-back]") && isLocalAdmin()) setLoginPreview(false);
   });
 
   dialog.querySelector("#accountForm").addEventListener("submit", async event => {
@@ -206,7 +234,7 @@
   window.CloudSync = { schedule, pull };
   updateAccountUi();
   request("/api/auth").then(result => {
-    user = result.user || null; notifyAccount();
+    user = result.user || null; document.body.dataset.authReady = "true"; notifyAccount();
     if (user) { hydrated = true; return pull(); }
-  }).catch(() => { user = null; notifyAccount(); });
+  }).catch(() => { user = null; document.body.dataset.authReady = "true"; notifyAccount(); });
 })();

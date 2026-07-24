@@ -37,19 +37,19 @@
     };
   };
   const emptyState = () => {
-    const job = newJob();
-    return { month: today.slice(0, 7), activeJobId: job.id, jobs: [job], shifts: [] };
+    return { month: today.slice(0, 7), activeJobId: null, jobs: [], shifts: [] };
   };
 
   function normalizeState(value) {
     const base = emptyState();
     const source = value && typeof value === "object" ? value : {};
     let jobs = Array.isArray(source.jobs) ? source.jobs : null;
-    if (!jobs) {
+    if (!jobs && (Array.isArray(source.rules) || Array.isArray(source.shifts))) {
       const job = newJob("勤務先1");
       job.rules = Array.isArray(source.rules) && source.rules.length ? source.rules : job.rules;
       jobs = [job];
     }
+    if (!jobs) jobs = [];
     jobs = jobs.map((job, index) => {
       const rules = Array.isArray(job.rules) && job.rules.length ? job.rules.map(rule => ({ ...defaultRule(), ...rule })) : [defaultRule()];
       const rulesByMonth = {};
@@ -82,7 +82,7 @@
       const breaks = Array.isArray(shift.breaks)
         ? shift.breaks.map(item => ({ id:Number(item.id) || Date.now() + Math.random(), start:item.start === "" ? "" : normalizeTime(item.start,""), end:item.end === "" ? "" : normalizeTime(item.end,"") }))
         : Number(shift.breakMinutes) > 0 ? [defaultBreak("12:00",timeAfter("12:00",shift.breakMinutes))] : [];
-      return { ...shift, jobId: Number(shift.jobId) || jobs[0].id, dates, start:shift.start === "" ? "" : normalizeTime(shift.start,""), end:shift.end === "" ? "" : normalizeTime(shift.end,""), breaks, sessions:shift.sessions === "" ? "" : Math.max(1,Number(shift.sessions)||1) };
+      return { ...shift, jobId: Number(shift.jobId) || jobs[0].id, dates, start:shift.start === "" ? "" : normalizeTime(shift.start,""), end:shift.end === "" ? "" : normalizeTime(shift.end,""), breaks, sessions:Math.max(1,Number(shift.sessions)||1) };
     }).filter(shift => shift.dates.length || shift.start || shift.end || shift.breaks.length || Number(shift.sessions) > 0 || String(shift.memo || "").trim()) : [];
     return { ...base, ...source, jobs, shifts, activeJobId, month: source.month || base.month };
   }
@@ -171,6 +171,12 @@
   }
   function calculateShift(shift, target = null) {
     const job = jobFor(shift.jobId);
+    const dates = shiftDates(shift).filter(date => !target || (typeof target === "string" ? date.startsWith(target) : inCycle(date, target)));
+    const sessionCount = Math.max(1,Number(shift.sessions)||1);
+    if (job.payType === "session") {
+      const sessions = dates.length * sessionCount;
+      return { grossMinutes:0, paidMinutes:0, breakMinutes:0, hours:0, wage:Math.round(sessions * Math.max(0,Number(job.sessionRate)||0)), days:dates.length, sessions, payType:job.payType };
+    }
     if (job.payType === "hourly" && (!shift.start || !shift.end)) return { grossMinutes:0, paidMinutes:0, breakMinutes:0, hours:0, wage:0, days:shiftDates(shift).length, sessions:0, payType:job.payType };
     const start = minutes(shift.start), rawEnd = minutes(shift.end), overnight = rawEnd < start, end = overnight ? rawEnd + 1440 : rawEnd;
     const grossMinutes = Math.max(0, end - start);
@@ -181,19 +187,22 @@
       if (breakEnd <= breakStart) breakEnd += 1440;
       return { start:Math.max(start,breakStart), end:Math.min(end,breakEnd) };
     }).filter(item => item.end > item.start);
-    const dates = shiftDates(shift).filter(date => !target || (typeof target === "string" ? date.startsWith(target) : inCycle(date, target)));
-    let wage = 0, paidMinutes = 0;
+    const workedMinutesByRate = new Map();
+    let paidMinutes = 0;
     dates.forEach(date => {
       for (let minute = start; minute < end; minute++) {
         if (breakRanges.some(item => minute >= item.start && minute < item.end)) continue;
+        const rate = rateAt(job, minute % 1440, target?.ruleMonth || date.slice(0, 7));
         paidMinutes += 1;
-        wage += rateAt(job, minute % 1440, target?.ruleMonth || date.slice(0, 7)) / 60;
+        workedMinutesByRate.set(rate, (workedMinutesByRate.get(rate) || 0) + 1);
       }
     });
+    const wage = [...workedMinutesByRate].reduce((total,[rate,workedMinutes]) => {
+      const hours = Math.floor(workedMinutes / 60), remainingMinutes = workedMinutes % 60;
+      return total + rate * hours + rate * (remainingMinutes / 60);
+    }, 0);
     const totalGrossMinutes = grossMinutes * dates.length;
-    const sessionCount = Math.max(0,Number(shift.sessions)||0);
-    if (job.payType === "session") wage = dates.length * sessionCount * Math.max(0,Number(job.sessionRate)||0);
-    return { grossMinutes:totalGrossMinutes, paidMinutes, breakMinutes:Math.max(0,totalGrossMinutes-paidMinutes), hours:paidMinutes / 60, wage:Math.round(wage), days:dates.length, sessions:dates.length*sessionCount, payType:job.payType };
+    return { grossMinutes:totalGrossMinutes, paidMinutes, breakMinutes:Math.max(0,totalGrossMinutes-paidMinutes), hours:paidMinutes / 60, wage:Math.round(wage), days:dates.length, sessions:0, payType:job.payType };
   }
   function monthShifts(job = activeJob(), cycle = payCycle(job)) {
     const firstDate = shift => shiftDates(shift).find(date => inCycle(date, cycle)) || "9999-99-99";
@@ -271,7 +280,8 @@
 
   function rateSettingsMarkup(job = activeJob()) {
     const rules = rulesFor(job, salaryState.month, true), baseRule = baseRuleFor(job, salaryState.month, true);
-    return `<div class="salary-rate-settings"><div class="salary-rate-settings-head"><b>${escapeHtml(salaryState.month)}</b><button type="button" class="secondary-btn" data-add-rule>＋ 追加</button></div><label class="base-rate-picker"><span>基本</span><div><input type="number" min="0" step="1" data-base-hourly-rate value="${baseRule.rate}" placeholder="1200"><em>円/時</em></div></label><div class="rule-list">${rules.slice(1).length ? rules.slice(1).map((rule,index)=>ruleRow(rule,index)).join("") : '<p class="salary-empty">時間帯別の時給はありません</p>'}</div></div>`;
+    const cycle = payCycle(job), [year,month] = salaryState.month.split("-").map(Number);
+    return `<div class="salary-rate-settings"><div class="salary-rate-settings-head"><div><b>${year}年${month}月度</b>${cycle.configured ? `<small>${shortDateLabel(cycle.start)}〜${shortDateLabel(cycle.end)}</small>` : ""}</div><button type="button" class="secondary-btn" data-add-rule>＋ 追加</button></div><label class="base-rate-picker"><span>基本</span><div><input type="number" min="0" step="1" data-base-hourly-rate value="${baseRule.rate}" placeholder="1200"><em>円/時</em></div></label><div class="rule-list">${rules.slice(1).length ? rules.slice(1).map((rule,index)=>ruleRow(rule,index)).join("") : '<p class="salary-empty">時間帯別の時給はありません</p>'}</div></div>`;
   }
   function renderRateDialog() {
     rateDialog.querySelector("[data-rate-dialog-body]").innerHTML = rateSettingsMarkup();
@@ -293,7 +303,7 @@
     const currentRules = rulesFor(currentJob, salaryState.month, true), currentBaseRule = baseRuleFor(currentJob, salaryState.month, true);
     const rateItems = [{ name:"基本", period:"全時間帯", amount:currentBaseRule.rate === "" ? "未設定" : money(currentBaseRule.rate) }, ...currentRules.slice(1).filter(rule => rule.rate !== "" && rule.rate != null).map((rule,index) => ({ name:rule.name || ruleExampleName(index), period:`${rule.start || "--:--"}〜${rule.end || "--:--"}`, amount:money(rule.rate) }))];
     const [salaryYear,salaryMonth] = salaryState.month.split("-").map(Number);
-    view.innerHTML = `<div class="salary-month-row"><button type="button" data-salary-month-step="-1" aria-label="前月">‹</button><label><strong>${salaryYear}年${salaryMonth}月分</strong>${cycle.configured?`<small>${shortDateLabel(cycle.start)}〜${shortDateLabel(cycle.end)}</small>`:""}<input type="month" data-salary-month value="${salaryState.month}" aria-label="給与の年月"></label><button type="button" data-salary-month-step="1" aria-label="翌月">›</button></div>
+    view.innerHTML = `<div class="salary-month-row"><button type="button" data-salary-month-step="-1" aria-label="前月">‹</button><label><strong>${salaryYear}年${salaryMonth}月度</strong>${cycle.configured?`<small>${shortDateLabel(cycle.start)}〜${shortDateLabel(cycle.end)}</small>`:""}<input type="month" data-salary-month value="${salaryState.month}" aria-label="給与の年月"></label><button type="button" data-salary-month-step="1" aria-label="翌月">›</button></div>
       <article class="salary-current-total"><span>今月の給料</span><strong data-month-wage>${money(monthTotal.wage)}</strong>${cycle.configured ? `<small>${shortDateLabel(cycle.payment)}振込</small>` : "<small>締め日と振込日を設定してください</small>"}</article>
       <section class="panel salary-compact-section"><div class="salary-compact-title"><h2>${currentJob.payType === "hourly" ? "時給" : "1コマ単価"}</h2></div>${currentJob.payType === "hourly" ? `<div class="salary-rate-list">${rateItems.map(item=>`<div><span>【${escapeHtml(item.name === "基本" ? "基本給" : item.name)}】</span><strong>${escapeHtml(item.amount)}</strong><small>${escapeHtml(item.period)}</small></div>`).join("")}</div><button type="button" class="salary-add-link" data-open-rate-settings>＋追加する</button>` : `<label class="salary-session-compact"><input type="number" min="0" step="1" data-job-session-rate value="${currentJob.sessionRate}" placeholder="1500"><span>円／コマ</span></label>`}</section>
       <section class="panel salary-compact-section salary-shifts"><div class="salary-compact-title"><h2>シフト入力</h2><select data-job-pay-type aria-label="給与制度"><option value="hourly" ${currentJob.payType === "hourly" ? "selected" : ""}>時給制</option><option value="session" ${currentJob.payType === "session" ? "selected" : ""}>1コマ制</option></select></div><div class="shift-list salary-compact-shifts">${shifts.length ? shifts.map(shiftRow).join("") : '<p class="salary-empty">シフトはありません</p>'}</div><button type="button" class="salary-add-link" data-add-shift ${cycle.configured ? "" : "disabled"}>＋追加</button></section>
@@ -380,6 +390,15 @@
     } catch { payslips = []; }
     if (view.classList.contains("active")) render();
   }
+  async function clearPayslipFiles() {
+    let files = payslips;
+    try {
+      const response = await fetch("/api/files", { credentials:"same-origin" });
+      if (response.ok) files = (await response.json()).files || [];
+      await Promise.allSettled(files.map(file => fetch(`/api/files/${encodeURIComponent(file.id)}`, { method:"DELETE", credentials:"same-origin" })));
+    } catch {}
+    payslips = [];
+  }
   async function uploadPayslip() {
     const input = view.querySelector("[data-payslip-file]"), file = input?.files?.[0];
     const note = view.querySelector("[data-payslip-note]");
@@ -404,7 +423,7 @@
     if (monthStep) changeMonth(Number(monthStep.dataset.salaryMonthStep));
     if (event.target.closest("[data-open-rate-settings]")) { renderRateDialog(); rateDialog.showModal(); return; }
     if (event.target.closest("[data-rate-close]")) { rateDialog.close(); return; }
-    if (event.target.closest("[data-add-shift]")) { const cycle=payCycle(activeJob());if(cycle.configured){salaryState.shifts.push({ id:Date.now(), jobId:activeJob().id, dates:[], start:"", end:"", breaks:[], sessions:"", memo:"" });persistAndRender();} }
+    if (event.target.closest("[data-add-shift]")) { const cycle=payCycle(activeJob());if(cycle.configured){salaryState.shifts.push({ id:Date.now(), jobId:activeJob().id, dates:[], start:"", end:"", breaks:[], sessions:1, memo:"" });persistAndRender();} }
     if (event.target.closest("[data-add-rule]")) { rulesFor(activeJob(), salaryState.month, true).push(defaultRule()); saveAndSync();render();renderRateDialog();return; }
     const statusButton = event.target.closest("[data-job-status]");
     if (statusButton) { activeJob().status=statusButton.dataset.jobStatus === "retired" ? "retired" : "active"; persistAndRender(); }
@@ -512,7 +531,10 @@
     paymentSchedule,
     recalculateAllSalaryIncome,
     restore: value => { salaryState=normalizeState(value); save(true); recalculateAllSalaryIncome(); render(); },
-    reset: () => { salaryState=emptyState(); save(true); recalculateAllSalaryIncome(); render(); }
+    reset: async ({ deleteFiles=false } = {}) => {
+      salaryState=emptyState(); salaryScreen="jobs"; save(true); recalculateAllSalaryIncome(); render();
+      if (deleteFiles) { await clearPayslipFiles(); render(); }
+    }
   };
   localStorage.setItem(KEY, JSON.stringify(salaryState));
   recalculateAllSalaryIncome();

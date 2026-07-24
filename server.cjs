@@ -9,7 +9,7 @@ const root = __dirname;
 const localDbPath = path.join(root, ".local-account.json");
 const sessions = new Map();
 const localDeviceUser = { id:"local-device", username:"Local端末", role:"admin" };
-const types = { ".html":"text/html; charset=utf-8", ".css":"text/css; charset=utf-8", ".js":"text/javascript; charset=utf-8", ".json":"application/json; charset=utf-8", ".svg":"image/svg+xml" };
+const types = { ".html":"text/html; charset=utf-8", ".css":"text/css; charset=utf-8", ".js":"text/javascript; charset=utf-8", ".json":"application/json; charset=utf-8", ".svg":"image/svg+xml", ".png":"image/png", ".ico":"image/x-icon" };
 
 function loadDb() {
   try { const value=JSON.parse(fs.readFileSync(localDbPath,"utf8"));return {users:Array.isArray(value.users)?value.users:[],data:value.data||{}}; }
