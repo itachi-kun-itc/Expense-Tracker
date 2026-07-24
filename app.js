@@ -70,6 +70,11 @@ function totalsForMonth(month=state.month) { const rows=monthRows(month),income=
 function totals() { return totalsForMonth(); }
 function carryoverForMonth(month=state.month) { return Number(state.carryoversByMonth[month]) || 0; }
 function currentAssetsForMonth(month=state.month) { return carryoverForMonth(month) + totalsForMonth(month).balance; }
+function assetsAsOf(date=localToday) {
+  const target=String(date),targetMonth=target.slice(0,7),manualMonth=Object.keys(state.carryoversByMonth).filter(month=>/^\d{4}-\d{2}$/.test(month)&&month<=targetMonth&&state.carryoverModes[month]==="manual").sort().at(-1)||"";
+  const base=manualMonth?carryoverForMonth(manualMonth):0,start=manualMonth?`${manualMonth}-01`:"";
+  return base+state.transactions.filter(item=>/^\d{4}-\d{2}-\d{2}$/.test(String(item.date))&&String(item.date)<=target&&(!start||String(item.date)>=start)).reduce((sum,item)=>sum+(item.type==="income"?1:-1)*Number(item.amount||0),0);
+}
 function spent(key) { return items().filter(item=>item.type==="expense"&&item.category===key).reduce((sum,item)=>sum+Number(item.amount||0),0); }
 function recurringTotal() { return state.recurring.reduce((sum,item)=>sum+Number(item.amount||0),0); }
 function salaryPaydays() {
@@ -108,7 +113,7 @@ function header() {
 }
 function dashboard() {
   const todayMonth=localToday.slice(0,7),rows=monthRows(todayMonth),{income,expense}=totalsForMonth(todayMonth),salaryTotal=rows.filter(item=>item.type==="income"&&item.category==="salary").reduce((sum,item)=>sum+Number(item.amount||0),0);
-  const confirmedRows=rows.filter(item=>String(item.date)<=localToday),assetTotal=carryoverForMonth(todayMonth)+confirmedRows.reduce((sum,item)=>sum+(item.type==="income"?1:-1)*Number(item.amount||0),0);
+  const assetTotal=assetsAsOf(localToday);
   const threshold=localToday,includeThreshold=false;
   const calculatedSalary=window.ExpenceSalaryStore?.nextPayForecast?.(localToday)||null;
   const salaryRows=state.transactions.filter(item=>item.type==="income"&&item.category==="salary"&&String(item.date)>=threshold).sort((a,b)=>String(a.date).localeCompare(String(b.date))||Number(a.id)-Number(b.id)),nextSalary=salaryRows[0],configuredPayday=!calculatedSalary&&!nextSalary&&state.month===todayMonth?nextSalaryDates().sort((a,b)=>a.date-b.date)[0]:null,nextDate=calculatedSalary?.date||nextSalary?.date||configuredPayday?.date?.toLocaleDateString("sv-SE")||"";
@@ -127,7 +132,7 @@ function activity(item) { const category=cats[item.category]||cats.other;return 
 function week() { const days=[];for(let index=6;index>=0;index--){const date=new Date();date.setHours(12,0,0,0);date.setDate(date.getDate()-index);const iso=date.toLocaleDateString("sv-SE");days.push({label:date.getDate()+"日",value:state.transactions.filter(item=>item.date===iso&&item.type==="expense").reduce((sum,item)=>sum+item.amount,0)});}const max=Math.max(...days.map(day=>day.value),1);weekChart.innerHTML=days.map(day=>`<div class="chart-column"><i data-value="${yen(day.value)}" style="height:${Math.max(3,day.value/max*82)}%"></i><span>${day.label}</span></div>`).join(""); }
 function transactions() {
   let rows=[...items()].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);if(filter!=="all")rows=rows.filter(item=>item.type===filter);
-  transactionTable.innerHTML='<div class="tx-row header"><span>日付</span><span>内容</span><span>カテゴリ</span><span>金額</span><span></span></div>'+(rows.map(item=>{const category=cats[item.category]||cats.other;return `<div class="tx-row"><span>${dateLabel(item.date)}</span><div><b>${escapeHtml(item.memo||category.name)}</b></div><span class="tx-category">${category.name}</span><b class="${item.type==='income'?'positive':''}">${item.type==='income'?'+':'−'}${yen(item.amount)}</b><button data-delete="${item.id}" aria-label="削除">削除</button></div>`}).join("")||'<p class="empty">この月の記録はありません</p>');
+  transactionTable.innerHTML='<div class="tx-row header"><span>日付</span><span>内容</span><span>カテゴリ</span><span>金額</span><span></span></div>'+(rows.map(item=>{const category=cats[item.category]||cats.other,automatic=Boolean(item.sourceId);return `<div class="tx-row"><span>${dateLabel(item.date)}</span><div><b>${escapeHtml(item.memo||category.name)}</b></div><span class="tx-category">${category.name}</span><b class="${item.type==='income'?'positive':''}">${item.type==='income'?'+':'−'}${yen(item.amount)}</b>${automatic?'<span class="tx-auto">自動</span>':`<div class="tx-actions"><button data-edit="${item.id}" aria-label="編集">編集</button><button data-delete="${item.id}" aria-label="削除">削除</button></div>`}</div>`}).join("")||'<p class="empty">この月の記録はありません</p>');
 }
 function renderExpenseBreakdown() {
   const monthTotal=totals(),expenses=items().filter(item=>item.type==="expense"),total=expenses.reduce((sum,item)=>sum+Number(item.amount||0),0),values=Object.keys(cats).filter(key=>key!=="salary").map(key=>({key,value:expenses.filter(item=>item.category===key).reduce((sum,item)=>sum+Number(item.amount||0),0)})).filter(item=>item.value>0).sort((a,b)=>b.value-a.value);
@@ -161,24 +166,35 @@ function setFinanceTab(tab="transactions") { document.querySelectorAll("[data-fi
 function nav(view) { const target=document.querySelector(`#${view}View`);if(!target)return false;const previous=document.body.dataset.activeView;if(previous!==view&&["dashboard","finances","cards"].includes(view)&&state.month!==currentMonth){state.month=currentMonth;state.assets=carryoverForMonth(currentMonth);monthBudgets();save();render();}document.querySelectorAll(".view").forEach(element=>element.classList.remove("active"));target.classList.add("active");document.querySelectorAll("[data-view]").forEach(button=>button.classList.toggle("active",button.dataset.view===view));document.querySelector(".topbar").classList.add("is-hidden");document.body.dataset.activeView=view;pageTitle.textContent="";document.querySelector("main").scrollTo({top:0,behavior:"smooth"});return true; }
 window.appNav = nav;
 function options() { const type=document.querySelector('input[name="type"]:checked').value,keys=type==="income"?["salary","other"]:Object.keys(cats).filter(key=>key!=="salary");categoryInput.innerHTML=keys.map(key=>`<option value="${key}">${cats[key].name}</option>`).join(""); }
-function openModal() { dateInput.value="";options();transactionModal.showModal();setTimeout(()=>amountInput.focus(),80); }
+let editingTransactionId=null;
+function openModal(item=null) {
+  transactionForm.reset();editingTransactionId=item?Number(item.id):null;
+  document.querySelector("[data-transaction-eyebrow]").textContent=item?"EDIT RECORD":"NEW RECORD";
+  document.querySelector("[data-transaction-title]").textContent=item?"入出金を編集":"入出金を記録";
+  document.querySelector("[data-transaction-submit]").textContent=item?"変更を保存":"保存する";
+  if(item){document.querySelector(`input[name="type"][value="${item.type}"]`).checked=true;amountInput.value=item.amount;dateInput.value=item.date;memoInput.value=item.memo||"";}else dateInput.value="";
+  options();if(item&&[...categoryInput.options].some(option=>option.value===item.category))categoryInput.value=item.category;
+  transactionModal.showModal();setTimeout(()=>amountInput.focus(),80);
+}
+function closeTransactionModal(){editingTransactionId=null;transactionForm.reset();transactionModal.close();}
 
 document.addEventListener("click", event => {
   const financeTab=event.target.closest("[data-finance-tab]")?.dataset.financeTab,go=event.target.closest("[data-go]")?.dataset.go,requestedView=event.target.closest("[data-view]")?.dataset.view;
   if(financeTab)setFinanceTab(financeTab);if(go==="transactions"||go==="budget"){nav("finances");setFinanceTab(go);}else if(requestedView)nav(requestedView);if(requestedView==="finances")setFinanceTab("transactions");
   const monthStep=event.target.closest("[data-finance-month-step]");if(monthStep)shiftMonth(Number(monthStep.dataset.financeMonthStep));
   const cardMonthStep=event.target.closest("[data-card-month-step]");if(cardMonthStep)shiftMonth(Number(cardMonthStep.dataset.cardMonthStep));
-  if(event.target.closest("[data-open-modal]"))openModal();if(event.target.closest("[data-close]"))transactionModal.close();
+  if(event.target.closest("[data-open-modal]"))openModal();if(event.target.closest("[data-close]"))closeTransactionModal();
   if(event.target.closest("[data-open-card-modal]")){cardMemoForm.reset();cardDateInput.value="";updateCardDateField();cardMemoDialog.showModal();}
   if(event.target.closest("[data-card-close]"))cardMemoDialog.close();
   const selectedFilter=event.target.closest("[data-filter]");if(selectedFilter){filter=selectedFilter.dataset.filter;document.querySelectorAll(".filter").forEach(button=>button.classList.toggle("active",button===selectedFilter));transactions();}
+  const editButton=event.target.closest("[data-edit]");if(editButton){const item=state.transactions.find(row=>row.id===Number(editButton.dataset.edit));if(item&&!item.sourceId)openModal(item);}
   const deletion=event.target.closest("[data-delete]");if(deletion&&confirm("この記録を削除しますか？")){state.transactions=state.transactions.filter(item=>item.id!==Number(deletion.dataset.delete));save();render();toast("記録を削除しました");}
   const cardDeletion=event.target.closest("[data-delete-card-history]");if(cardDeletion){const id=Number(cardDeletion.dataset.deleteCardHistory),row=state.cardHistory.find(item=>item.id===id);if(row&&confirm("この月のカード履歴を削除しますか？")){state.cardHistory=state.cardHistory.filter(item=>item.id!==id);if(row.recurringId){const recurring=state.cardRecurring.find(item=>item.id===row.recurringId),month=String(row.date).slice(0,7);if(recurring){if(confirm("今後の毎月自動記録も停止しますか？"))recurring.active=false;else recurring.skippedMonths=[...new Set([...(recurring.skippedMonths||[]),month])];}}save();render();toast("カード履歴を削除しました");}}
   if(event.target.closest("[data-save-carryover]")){const input=document.querySelector("[data-carryover-input]");setCarryover(Number(input.value),state.month,"manual");toast("繰越金を手動設定しました");}
   if(event.target.closest("[data-use-auto-carryover]")){state.carryoverModes[state.month]="auto";delete state.carryoverUpdatedAt[state.month];delete state.carryoverUpdateKeys[state.month];delete state.carryoverUpdateLabels[state.month];updateAutomaticCarryover(state.month);save();render();toast("繰越金を自動更新に戻しました");}
 });
 document.querySelectorAll('input[name="type"]').forEach(radio=>radio.addEventListener("change",options));
-transactionForm.addEventListener("submit",event=>{event.preventDefault();const amount=Number(amountInput.value);if(!amount)return;state.transactions.push({id:Date.now(),date:dateInput.value,type:document.querySelector('input[name="type"]:checked').value,category:categoryInput.value,amount,memo:memoInput.value.trim()});save();event.target.reset();transactionModal.close();render();toast("記録を追加しました");});
+transactionForm.addEventListener("submit",event=>{event.preventDefault();const amount=Number(amountInput.value),date=dateInput.value;if(!amount||!date)return;const next={date,type:document.querySelector('input[name="type"]:checked').value,category:categoryInput.value,amount,memo:memoInput.value.trim()},editing=editingTransactionId!==null,item=editing?state.transactions.find(row=>row.id===editingTransactionId):null;if(item&&!item.sourceId)Object.assign(item,next);else state.transactions.push({id:Date.now(),...next});state.month=date.slice(0,7);state.assets=carryoverForMonth(state.month);monthBudgets();save();closeTransactionModal();render();toast(editing?"記録を更新しました":"記録を追加しました");});
 cardRecurringInput.addEventListener("change",updateCardDateField);
 cardMemoForm.addEventListener("submit",event=>{event.preventDefault();const form=new FormData(event.target),recurring=form.get("recurring")==="on",date=recurring?`${state.month}-01`:String(form.get("date")||""),amount=Number(form.get("amount")),cardName="カード",memo=String(form.get("memo")||"").trim();if(!date||!amount)return;if(recurring){state.cardRecurring.push({id:Date.now(),startMonth:state.month,day:1,cardName,amount,memo,active:true,skippedMonths:[]});}else state.cardHistory.push({id:Date.now(),date,cardName,amount,memo});state.month=date.slice(0,7);save();cardMemoDialog.close();render();toast(recurring?"毎月の自動記録を設定しました":"カード履歴を追加しました");});
 monthPicker.addEventListener("change",event=>{state.month=event.target.value;state.assets=carryoverForMonth();monthBudgets();save();render();});
