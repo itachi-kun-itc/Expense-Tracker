@@ -13,7 +13,7 @@
         <button type="button" class="close-btn" data-account-close>← 戻る</button>
       </div>
       <div class="auth-fields">
-        <label>アカウント名<input name="username" autocomplete="username" minlength="3" maxlength="32" required placeholder="haruka"></label>
+        <label>アカウント名<input name="username" autocomplete="username" minlength="3" maxlength="32" required placeholder="my-account"></label>
         <label>パスワード<input name="password" type="password" autocomplete="current-password" minlength="6" maxlength="128" required placeholder="6文字以上のパスワード"></label>
         <p class="password-warning">パスワードを忘れると復旧できません。必ずご自身で安全な場所に控えてください。</p>
         <p class="account-error" role="alert"></p>
@@ -38,12 +38,12 @@
   const sessionError = dialog.querySelector("[data-session-error]");
   const previewButton = document.querySelector("[data-login-preview-open]");
 
-  function isLocalAdmin() {
-    return user?.id === "local-device" && user?.role === "admin";
+  function isAdmin() {
+    return user?.role === "admin";
   }
 
   function setLoginPreview(active) {
-    document.body.dataset.loginPreview = active && isLocalAdmin() ? "true" : "false";
+    document.body.dataset.loginPreview = active && isAdmin() ? "true" : "false";
   }
 
   function snapshot() {
@@ -81,8 +81,8 @@
     fields.hidden = Boolean(user);
     session.hidden = !user;
     document.body.dataset.authenticated = user ? "true" : "false";
-    if (previewButton) previewButton.hidden = !isLocalAdmin();
-    if (!isLocalAdmin()) setLoginPreview(false);
+    if (previewButton) previewButton.hidden = !isAdmin();
+    if (!isAdmin()) setLoginPreview(false);
     if (user) {
       dialog.querySelector("[data-session-name]").textContent = user.username;
       dialog.querySelector("[data-session-role]").textContent = user.role === "admin" ? "管理者" : "";
@@ -184,8 +184,8 @@
     if (event.target.closest("[data-account-close]")) dialog.close();
     if (event.target.closest("[data-auth-gate-register]")) openAuthAction("register");
     if (event.target.closest("[data-auth-gate-login]")) openAuthAction("login");
-    if (event.target.closest("[data-login-preview-open]") && isLocalAdmin()) setLoginPreview(true);
-    if (event.target.closest("[data-login-preview-back]") && isLocalAdmin()) setLoginPreview(false);
+    if (event.target.closest("[data-login-preview-open]") && isAdmin()) setLoginPreview(true);
+    if (event.target.closest("[data-login-preview-back]") && isAdmin()) setLoginPreview(false);
   });
 
   dialog.querySelector("#accountForm").addEventListener("submit", async event => {
